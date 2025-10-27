@@ -1,0 +1,1 @@
+/usr/bin/cc -g -Wl,--dependency-file=CMakeFiles/testwhole.dir/link.d CMakeFiles/testwhole.dir/test.c.o -o testwhole  -Wl,-rpath,/home/thedeath/Desktop/Aurora/build:/home/thedeath/Desktop/Aurora/build/engine/helpers libdatapoint.so.1.1.0 libjson.so.1.3.0 libfiles.so.1.0.1 -lcjson

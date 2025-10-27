@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -g -Wl,--dependency-file=CMakeFiles/datapoint.dir/link.d -shared -Wl,-soname,libdatapoint.so.1 -o libdatapoint.so.1.1.0 CMakeFiles/datapoint.dir/data.c.o

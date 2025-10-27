@@ -1,0 +1,9 @@
+/home/thedeath/Desktop/Aurora/engine/helpers/compiled/lib/libdatapoint.so.1.1.0
+/home/thedeath/Desktop/Aurora/engine/helpers/compiled/lib/libdatapoint.so.1
+/home/thedeath/Desktop/Aurora/engine/helpers/compiled/lib/libdatapoint.so
+/home/thedeath/Desktop/Aurora/engine/helpers/compiled/lib/libjson.so.1.3.0
+/home/thedeath/Desktop/Aurora/engine/helpers/compiled/lib/libjson.so.1
+/home/thedeath/Desktop/Aurora/engine/helpers/compiled/lib/libjson.so
+/home/thedeath/Desktop/Aurora/engine/helpers/compiled/lib/libfiles.so.1.0.1
+/home/thedeath/Desktop/Aurora/engine/helpers/compiled/lib/libfiles.so.1
+/home/thedeath/Desktop/Aurora/engine/helpers/compiled/lib/libfiles.so

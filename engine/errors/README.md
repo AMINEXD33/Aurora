@@ -1,0 +1,1 @@
+This directory contains error functions for the core

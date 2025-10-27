@@ -1,0 +1,24 @@
+{
+    "threads": 3,
+    "jobs": {
+        "job1": {
+            "module1":"../../modules/something.o",
+            "module2":"../../modules/something.o",
+            "module3":"../../modules/something.o",
+            "module4":"../../modules/something.o"
+        },
+        "job2":{
+            "module1":"../../modules/something.o",
+            "module2":"../../modules/something.o",
+            "module3":"../../modules/something.o",
+            "module4":"../../modules/something.o"
+        },
+        "job3":{
+            "module1":"../../modules/something.o",
+            "module2":"../../modules/something.o",
+            "module3":"../../modules/something.o",
+            "module4":"../../modules/something.o"
+        }
+
+    }
+}

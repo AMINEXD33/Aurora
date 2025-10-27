@@ -1,0 +1,28 @@
+{
+    "files.associations": {
+        "errno.h": "c",
+        "global.h": "c",
+        "string": "c",
+        "format": "c",
+        "helpers.h": "c",
+        "array": "c",
+        "string_view": "c",
+        "span": "c",
+        "complex": "c",
+        "initializer_list": "c",
+        "stdarg.h": "c",
+        "functional": "c",
+        "math.h": "c",
+        "charconv": "c",
+        "compare": "c",
+        "ratio": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "variant": "c",
+        "bit": "c",
+        "limits": "c",
+        "new": "c",
+        "mutex": "c"
+    }
+}

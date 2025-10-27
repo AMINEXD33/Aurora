@@ -1,0 +1,1 @@
+This directory contains helper function for the core

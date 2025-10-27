@@ -1,0 +1,18 @@
+Start testing: Oct 25 21:38 +01
+----------------------------------------------------------
+1/1 Testing: test1
+1/1 Test: test1
+Command: "/home/thedeath/Desktop/Aurora/build/engine/helpers/testwhole"
+Directory: /home/thedeath/Desktop/Aurora/build/engine/helpers
+"test1" start time: Oct 25 21:38 +01
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"test1" end time: Oct 25 21:38 +01
+"test1" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Oct 25 21:38 +01
