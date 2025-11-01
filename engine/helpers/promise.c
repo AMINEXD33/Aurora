@@ -1,7 +1,20 @@
 #include "./helpers.h"
-#include <unistd.h>
 
 
+struct timeval *make_clock() {
+    struct timeval *t = malloc(sizeof(struct timeval));
+    if (!t){
+        return NULL;
+    }
+    return t;
+}
+
+double calc_delta(struct timeval *start,struct timeval *end){
+    
+    double delta = (end->tv_sec - start->tv_sec) + 
+                   (end->tv_usec - start->tv_usec) * 1e-6;
+    return delta;
+}
 
 /**
  * initiate Promise store
@@ -12,15 +25,22 @@ PromiseStore *InitPromiseStore(){
         printf("can't allocate memory for the promise store\n");
         return NULL;
     }
-    store->promises = calloc(1, sizeof(Promise*));
+    store->promises = calloc(10, sizeof(Promise*));
     if (!store->promises){
-        printf("can't allocate mempry for promises pointers\n");
+        printf("can't allocate memory for promises pointers\n");
         free(store);
         return NULL;
     }
-
+    store->last_cleanup_start = make_clock();
+    if (!store->last_cleanup_start){
+        printf("can't allocate memory for last cleanup start clock\n");
+        free(store->promises);
+        free(store);
+    }
     store->count = 0;
-    store->capacity = 1;
+    store->capacity = 10;
+    // initiate the cleanup with time of creation
+    gettimeofday(store->last_cleanup_start, NULL);
     pthread_mutex_init(&store->lock, NULL);
     pthread_cond_init(&store->slot_available, NULL);
     return store;
@@ -58,12 +78,13 @@ Promise *get_create_promise(PromiseStore *store, const char *key){
     // scan or wait for empty memory
     while (1) {
         // Always check for existing promise first
-        for (unsigned long index = 0; index < store->capacity; index++){
+        for (long int index = 0; index < store->capacity; index++){
             if (store->promises[index]){
                 if (strcmp(store->promises[index]->key, key) == 0){
                     Promise *promise = store->promises[index];
                     
                     pthread_mutex_lock(&promise->lock);
+                    // this cashe is accessed one more time
                     promise->access_count += 1;
                     pthread_mutex_unlock(&promise->lock);
                     // unlock store here sinse we returning
@@ -219,7 +240,7 @@ void * foo(void *arg){
             printf("[+]thread %d got the work\n", args->id);
             sleep(10);
             Data *data = malloc(sizeof(Data));
-            WriteData(data, STRING, "12314", DATA_NOT_OWNED);
+            WriteData(data, STRING, "this is the work of 111111", DATA_NOT_OWNED);
             publish(p, data);
             done_with_promise_data(p);
         }else if (claimed == false){
@@ -240,7 +261,7 @@ void * foo(void *arg){
             printf("[+]thread %d got the work\n", args->id);
             sleep(10);
             Data *data = malloc(sizeof(Data));
-            WriteData(data, STRING, "12314", DATA_NOT_OWNED);
+            WriteData(data, STRING, "this is the work of 222222", DATA_NOT_OWNED);
             publish(p2, data);
             done_with_promise_data(p2);
         }else if (claimed2 == false){
@@ -260,12 +281,28 @@ void * foo(void *arg){
 void *cleaner_thread(void *arg){
     thread_info *args = (thread_info *)arg;
     PromiseStore *store = args->store;
-    
+    sched_yield();
+    // see delta of last clean
+    struct timeval *end = make_clock();
     while(true){
         // this will be replaiced with a conditional wait to preserve CPU BABYYYY
         if (store->count+10 > store->capacity){
-            long int least_accessed = -1;
             pthread_mutex_lock(&store->lock);
+            // calculating delta for the cleaning
+            gettimeofday(end, NULL);
+            double delta = calc_delta(store->last_cleanup_start, end);
+            printf("delta = %.6f seconds\n", delta);
+            // do some decesion making here
+
+            
+
+            // update the start timer
+            store->last_cleanup_start->tv_sec = end->tv_sec;
+            store->last_cleanup_start->tv_usec = end->tv_usec;
+
+            // this part just finds the LEAST ACCESSED ELEMENT <this is going to be updated with
+            // time based threashhold cleaning>  
+            long int least_accessed = -1;
             for (long int index = 0; index < store->capacity; index++){
                 if (!store->promises[index]) continue;
                 pthread_mutex_lock(&store->promises[index]->lock);
@@ -277,7 +314,9 @@ void *cleaner_thread(void *arg){
                 }
                 pthread_mutex_unlock(&store->promises[index]->lock);
             }
+            // if no least accessed , that means we didn't find any element, than proceed to the next loop
             if (least_accessed == -1) continue;
+            // get the target promise
             Promise *promise = store->promises[least_accessed];
             if (!promise) continue;
             //printf("found the least accessed > %s\n", promise->key);
@@ -285,7 +324,7 @@ void *cleaner_thread(void *arg){
                 promise->working_threads, 
                 promise->waiting_threads);
             sleep(3);
-
+            // if all threads are not using it anymore clean it
             if (promise->waiting_threads == 0 && promise->working_threads == 0) {
                 pthread_mutex_lock(&promise->lock);
                 free(promise->key);
@@ -298,7 +337,8 @@ void *cleaner_thread(void *arg){
                 store->promises[least_accessed] = NULL;
                 store->count--;
                 printf("[x]freed a promise\n");
-                printf("[x] count is = %d\n ", store->count);
+                printf("[x] count is = %ld\n ", store->count);
+                // broadcast that we cleaned it , for any thread waiting for a free slot
                 pthread_cond_broadcast(&store->slot_available);
             }
             pthread_mutex_unlock(&store->lock);

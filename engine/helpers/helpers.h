@@ -9,7 +9,9 @@
 #include "../../global.h"
 #include <cjson/cJSON.h>
 #include <pthread.h>
-
+#include <time.h>
+#include <unistd.h>
+#include <sys/time.h>
 #define DATA_OWNED true 
 #define DATA_NOT_OWNED false 
 
@@ -32,15 +34,17 @@ typedef struct{
     unsigned int waiting_threads;
     unsigned int working_threads;
     unsigned int access_count;
+    struct timeval * last_access;// time stamp
 }Promise;
 
 /*promise store*/
 typedef struct{
     Promise **promises;
-    unsigned long int capacity;
+    long int capacity;
     long int count;
     pthread_mutex_t lock;
     pthread_cond_t slot_available;
+    struct timeval * last_cleanup_start;// time stamp
 }PromiseStore;
 
 /*file structure*/

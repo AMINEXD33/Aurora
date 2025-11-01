@@ -23,6 +23,10 @@
         "bit": "c",
         "limits": "c",
         "new": "c",
-        "mutex": "c"
+        "mutex": "c",
+        "unistd.h": "c",
+        "stdlib.h": "c",
+        "stdio.h": "c",
+        "time.h": "c"
     }
 }
