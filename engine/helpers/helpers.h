@@ -12,6 +12,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <math.h>
 #define DATA_OWNED true 
 #define DATA_NOT_OWNED false 
 
@@ -45,6 +46,17 @@ typedef struct{
     pthread_mutex_t lock;
     pthread_cond_t slot_available;
     struct timeval * last_cleanup_start;// time stamp
+
+    // ema tracking
+    double smoothing;
+    double ema_occupancy;
+    double prev_ema;
+
+    // adaptive threshold
+    double threshold;
+    double min_threshold;
+    double max_threshold;
+    double max_recorded;
 }PromiseStore;
 
 /*file structure*/

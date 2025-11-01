@@ -25,7 +25,7 @@ PromiseStore *InitPromiseStore(){
         printf("can't allocate memory for the promise store\n");
         return NULL;
     }
-    store->promises = calloc(10, sizeof(Promise*));
+    store->promises = calloc(10000, sizeof(Promise*));
     if (!store->promises){
         printf("can't allocate memory for promises pointers\n");
         free(store);
@@ -38,12 +38,22 @@ PromiseStore *InitPromiseStore(){
         free(store);
     }
     store->count = 0;
-    store->capacity = 10;
+    store->capacity = 10000;
+    store->smoothing = 0.1;
+    store->ema_occupancy = 0.0;
+    store->prev_ema = 0.0;
+    store->threshold = 10;
+    store->min_threshold = 1;
+    store->max_threshold = 100;
+    store->max_recorded = 0.0;
     // initiate the cleanup with time of creation
     gettimeofday(store->last_cleanup_start, NULL);
     pthread_mutex_init(&store->lock, NULL);
     pthread_cond_init(&store->slot_available, NULL);
     return store;
+}
+void free_promise_store(){
+    
 }
 
 /**
@@ -89,8 +99,8 @@ Promise *get_create_promise(PromiseStore *store, const char *key){
                     pthread_mutex_unlock(&promise->lock);
                     // unlock store here sinse we returning
                     pthread_mutex_unlock(&store->lock);
-                    printf("[Thread %lu] Found existing: %s\n", 
-                           pthread_self(), key);
+                    //printf("[Thread %lu] Found existing: %s\n", 
+                           //pthread_self(), key);
                     return promise;
                 }
             }
@@ -98,11 +108,11 @@ Promise *get_create_promise(PromiseStore *store, const char *key){
         
         // Check if store is full
         if (store->count >= store->capacity){
-            printf("[Thread %lu] Waiting for slot (count=%lu)...\n", 
-                   pthread_self(), store->count);
+            //printf("[Thread %lu] Waiting for slot (count=%lu)...\n", 
+                   //pthread_self(), store->count);
             // wait for the memory to be freed
             pthread_cond_wait(&store->slot_available, &store->lock);
-            printf("[Thread %lu] Woke up, rechecking...\n", pthread_self());
+            //printf("[Thread %lu] Woke up, rechecking...\n", pthread_self());
             // rescan
             continue;  // Re-check everything from the top
         }
@@ -117,7 +127,7 @@ Promise *get_create_promise(PromiseStore *store, const char *key){
     strcpy(promise->key, key);
     promise->status = PENDING;
     promise->data = NULL;
-    promise->access_count = 0;
+    promise->access_count = 100;
     promise->waiting_threads = 0;
     promise->working_threads = 0;
     // init the lock
@@ -125,11 +135,11 @@ Promise *get_create_promise(PromiseStore *store, const char *key){
     // init the signal condition
     pthread_cond_init(&promise->ready, NULL);
 
-    printf("create empty promise for key %s\n", promise->key);
+    //printf("create empty promise for key %s\n", promise->key);
     // this could happen , better safe
     // find a free slot
     long int free_slot = find_empty_slot(store);
-    printf("[+] free slot = %ld\n", free_slot);
+    //printf("[+] free slot = %ld\n", free_slot);
     // append 
     store->promises[free_slot] = promise;
     store->count++;
@@ -155,11 +165,11 @@ bool claim_work(Promise *promise){
         // point out that a thread is working with this data
         promise->working_threads++;
         pthread_mutex_unlock(&promise->lock);
-        printf("claimed work for key %s\n", promise->key);
+        //printf("claimed work for key %s\n", promise->key);
         // we got the work
         return true;
     }
-    printf("didn't claimed work for key %s\n", promise->key);
+    //printf("didn't claimed work for key %s\n", promise->key);
     pthread_mutex_unlock(&promise->lock);
     return false;
 }
@@ -176,7 +186,7 @@ void publish(Promise *promise, Data *result){
         printf("you need to pass a result\n");
         return;
     }
-    printf("publishing key %s\n", promise->key);
+    //printf("publishing key %s\n", promise->key);
     pthread_mutex_lock(&promise->lock);
     // append data
     promise->data = result;
@@ -195,7 +205,7 @@ Data *wait_for_result(Promise *promise){
     promise->waiting_threads++;
     // Wait until result is ready
     while (promise->status != READY){
-        printf("waiting for key %s\n",promise->key);
+        //printf("waiting for key %s\n",promise->key);
         // wait for the promise to to be ready
         pthread_cond_wait(&promise->ready, &promise->lock);
     }
@@ -217,12 +227,9 @@ Data *wait_for_result(Promise *promise){
 */
 void done_with_promise_data(Promise *promise){
     pthread_mutex_lock(&promise->lock);
-    printf(">) done with the data promise\n");
+    //printf(">) done with the data promise\n");
     promise->working_threads--;
-    printf("done and now working thread is %d and waiting thread is %d\n",
-    promise->working_threads,
-    promise->waiting_threads
-    );
+
     pthread_mutex_unlock(&promise->lock);
 }
 
@@ -230,122 +237,212 @@ typedef struct{
     PromiseStore *store;
     int id;
 }thread_info;
+void rand_str(char *dest, size_t length) {
+    char charset[] = "0123456789"
+                     "abcdefghijklmnopqrstuvwxyz"
+                     "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+    while (length-- > 0) {
+        size_t index = (double) rand() / RAND_MAX * (sizeof charset - 1);
+        *dest++ = charset[index];
+    }
+    *dest = '\0';
+}
 void * foo(void *arg){
     thread_info *args = (thread_info *)arg;
-    Promise *p = get_create_promise(args->store, "test1");
-    bool claimed = claim_work(p);
-    if (p){
-        if (claimed == true){
-            printf("[+]thread %d got the work\n", args->id);
-            sleep(10);
-            Data *data = malloc(sizeof(Data));
-            WriteData(data, STRING, "this is the work of 111111", DATA_NOT_OWNED);
-            publish(p, data);
-            done_with_promise_data(p);
-        }else if (claimed == false){
-            printf("[+]thread %d is waiting for key %s\n", args->id, p->key);
-            Data *data = wait_for_result(p);
-            char *result = ReadDataStr(data);
-            printf("[+]thread %d for the result of key %s = %s\n", 
-                args->id, p->key, result);
-            done_with_promise_data(p);
+    // Promise *p = get_create_promise(args->store, "test1");
+    // bool claimed = claim_work(p);
+    // if (p){
+    //     if (claimed == true){
+    //         printf("[+]thread %d got the work\n", args->id);
+    //         sleep(10);
+    //         Data *data = malloc(sizeof(Data));
+    //         WriteData(data, STRING, "this is the work of 111111", DATA_NOT_OWNED);
+    //         publish(p, data);
+    //         done_with_promise_data(p);
+    //     }else if (claimed == false){
+    //         printf("[+]thread %d is waiting for key %s\n", args->id, p->key);
+    //         Data *data = wait_for_result(p);
+    //         char *result = ReadDataStr(data);
+    //         printf("[+]thread %d for the result of key %s = %s\n", 
+    //             args->id, p->key, result);
+    //         done_with_promise_data(p);
             
-        }
+    //     }
+    // }
+
+    Promise **promises = malloc(sizeof(Promise) * 100);
+    for (int x = 0; x < 300; x++){
+        char *c = malloc(sizeof(char) * 10);
+        rand_str(c, 10);
+        Promise *p = get_create_promise(args->store, c);
+        //printf("created : %s\n", c);
+        bool claimed = claim_work(p);
+        promises[x] = p;
     }
-    Promise *p2 = get_create_promise(args->store, "test2");
-    printf("added for test 2 \n");
-    bool claimed2 = claim_work(p2);
-    if (p2){
-        if (claimed2 == true){
-            printf("[+]thread %d got the work\n", args->id);
-            sleep(10);
-            Data *data = malloc(sizeof(Data));
-            WriteData(data, STRING, "this is the work of 222222", DATA_NOT_OWNED);
-            publish(p2, data);
-            done_with_promise_data(p2);
-        }else if (claimed2 == false){
-            printf("[+]thread %d is waiting for key %s\n", args->id, p2->key);
-            Data *data = wait_for_result(p2);
-            char *result = ReadDataStr(data);
-            printf("[+]thread %d for the result of key %s = %s\n", 
-                args->id, p2->key, result);
-            done_with_promise_data(p2);
+    sleep(5);
+    for (int x = 0; x < 300; x++){
+        done_with_promise_data(promises[x]);
+    }
+    // Promise *p2 = get_create_promise(args->store, "test2");
+    // printf("added for test 2 \n");
+    // bool claimed2 = claim_work(p2);
+    // if (p2){
+    //     if (claimed2 == true){
+    //         printf("[+]thread %d got the work\n", args->id);
+    //         sleep(10);
+    //         Data *data = malloc(sizeof(Data));
+    //         WriteData(data, STRING, "this is the work of 222222", DATA_NOT_OWNED);
+    //         publish(p2, data);
+    //         done_with_promise_data(p2);
+    //     }else if (claimed2 == false){
+    //         printf("[+]thread %d is waiting for key %s\n", args->id, p2->key);
+    //         Data *data = wait_for_result(p2);
+    //         char *result = ReadDataStr(data);
+    //         printf("[+]thread %d for the result of key %s = %s\n", 
+    //             args->id, p2->key, result);
+    //         done_with_promise_data(p2);
             
-        }
-    }
+    //     }
+    // }
     return NULL;
 }
+
+
+double update_store_threshold(PromiseStore *store){
+    // calc accupancy 
+    double occupancy = ((double)store->count / (double)store->capacity) * 100;
+
+    // update ema
+    store->ema_occupancy =store->smoothing * occupancy + (1 - store->smoothing) * store->prev_ema;
+    // calculate trend
+    double trend = store->ema_occupancy - store->prev_ema;
+    // calc adjustments
+    double adjustment = 1;
+    if (trend > 0){
+        // pressure going up
+        if (store->ema_occupancy > 70){
+            // critical , go up fast
+            adjustment = 1 + 0.2 * tanh(trend / 10);
+        }else{
+            // go up slowly
+            adjustment = 1 + 0.1 * tanh(trend / 10);
+        }
+    }
+    else if(trend < 0){
+        // pressure going down
+        adjustment = 0.9;
+    }
+    else{
+        // same level
+        adjustment = 1;
+    }
+
+    // occupancy multiplier
+    if (store->ema_occupancy > 95){
+        // be aggressive
+        adjustment *= 1.3;
+    }
+    else if (store->ema_occupancy > 85){
+        // little bit aggressive
+        adjustment *= 1.2;
+    }
+    else if (store->ema_occupancy < 30){
+        // relax
+        adjustment *= 1.0;
+    }
+
+    store->threshold = store->threshold * adjustment;
+    if (store->threshold > store->max_threshold){
+        store->threshold = store->max_threshold;
+    }
+    if (store->threshold < store->min_threshold){
+        store->threshold = store->min_threshold;
+    }
+    store->prev_ema = store->ema_occupancy;
+
+    if (store->threshold > store->max_recorded){
+        store->max_recorded = store->threshold;
+    }
+
+    return store->threshold;
+}
+
+
 
 /**/
 void *cleaner_thread(void *arg){
     thread_info *args = (thread_info *)arg;
     PromiseStore *store = args->store;
-    sched_yield();
+    sleep(1);
     // see delta of last clean
     struct timeval *end = make_clock();
+    int cleaned = 0;
     while(true){
-        // this will be replaiced with a conditional wait to preserve CPU BABYYYY
-        if (store->count+10 > store->capacity){
-            pthread_mutex_lock(&store->lock);
-            // calculating delta for the cleaning
-            gettimeofday(end, NULL);
-            double delta = calc_delta(store->last_cleanup_start, end);
-            printf("delta = %.6f seconds\n", delta);
-            // do some decesion making here
-
-            
-
-            // update the start timer
-            store->last_cleanup_start->tv_sec = end->tv_sec;
-            store->last_cleanup_start->tv_usec = end->tv_usec;
-
-            // this part just finds the LEAST ACCESSED ELEMENT <this is going to be updated with
-            // time based threashhold cleaning>  
-            long int least_accessed = -1;
-            for (long int index = 0; index < store->capacity; index++){
-                if (!store->promises[index]) continue;
-                pthread_mutex_lock(&store->promises[index]->lock);
-                if (least_accessed == -1){
-                    least_accessed = index;
-                }
-                if (store->promises[index]->access_count < store->promises[least_accessed]->access_count){
-                    least_accessed = index;
-                }
-                pthread_mutex_unlock(&store->promises[index]->lock);
-            }
-            // if no least accessed , that means we didn't find any element, than proceed to the next loop
-            if (least_accessed == -1) continue;
-            // get the target promise
-            Promise *promise = store->promises[least_accessed];
-            if (!promise) continue;
-            //printf("found the least accessed > %s\n", promise->key);
-            printf("threads working = %d\nthreads waiting = %d\n", 
-                promise->working_threads, 
-                promise->waiting_threads);
-            sleep(3);
-            // if all threads are not using it anymore clean it
-            if (promise->waiting_threads == 0 && promise->working_threads == 0) {
-                pthread_mutex_lock(&promise->lock);
-                free(promise->key);
-                FreeDataPoint(promise->data);
-                pthread_mutex_unlock(&promise->lock);
-                pthread_mutex_destroy(&promise->lock);
-                pthread_cond_destroy(&promise->ready);
-                free(promise);
-                // update the pointer to null
-                store->promises[least_accessed] = NULL;
-                store->count--;
-                printf("[x]freed a promise\n");
-                printf("[x] count is = %ld\n ", store->count);
-                // broadcast that we cleaned it , for any thread waiting for a free slot
-                pthread_cond_broadcast(&store->slot_available);
-            }
-            pthread_mutex_unlock(&store->lock);
+        double occupancy = ((double)store->count / (double)store->capacity) * 100;
+        if (occupancy < 50){
+            sleep(0.1);
         }
-        sleep(3);
+        // this will be replaiced with a conditional wait to preserve CPU BABYYYY
+        pthread_mutex_lock(&store->lock);
+        double threshold = update_store_threshold(store);
+        for (unsigned long int index = 0; index < store->capacity; index ++){
+            Promise *promise = store->promises[index];
+            // if this slot is empty skip
+            if (promise == NULL) continue;
+            // update max access count (max threshold)
+            if (promise->access_count > store->max_threshold){
+                store->max_threshold = promise->access_count;
+            }
+            // if this cash needs to get cleaned
+            if (threshold >= promise->access_count){
+                // ofc free when no thread is working or waiting for the data
+                //printf("waiting thread %d\nworking threads %d\n",promise->waiting_threads,
+                //promise->working_threads);
+                if (promise->waiting_threads == 0 && promise->working_threads == 0) {
+                    pthread_mutex_lock(&promise->lock);
+                    free(promise->key);
+                    FreeDataPoint(promise->data);
+                    pthread_mutex_unlock(&promise->lock);
+                    pthread_mutex_destroy(&promise->lock);
+                    pthread_cond_destroy(&promise->ready);
+                    free(promise);
+                    // update the pointer to null
+                    store->promises[index] = NULL;
+                    store->count--;
+                    //printf("[x]freed a promise\n");
+                    //printf("[x] count is = %ld\n ", store->count);
+                    // broadcast that we cleaned it , for any thread waiting for a free slot
+                    pthread_cond_broadcast(&store->slot_available);
+                    cleaned++;
+                }
+            }
+        }
+        pthread_mutex_unlock(&store->lock);
+        //printf("_____cleaned = %d\n", cleaned);
+        sleep(0.5);
     }
+}
 
+void *periodic_print(void *arg){
+    thread_info *args = (thread_info *)arg;
+    PromiseStore *store = args->store;
+
+    while (true)
+    {
+        pthread_mutex_lock(&store->lock);
+        printf("---------------------------------\n");
+        printf("Store capacity : %lf\nStore threshold : %lf\n", 
+            ((double)store->count/(double)store->capacity)*100, store->threshold);
+        printf("store capacity : %ld\n max threshold = %lf, min threshold %lf\n", 
+            store->capacity, store->max_threshold, store->min_threshold);
+        printf("store count : %ld\n", store->count);
+        printf("max threshold : %lf\n", store->max_recorded);
+        printf("---------------------------------\n");
+        pthread_mutex_unlock(&store->lock);
+        sleep(1);
+    }
+    
 }
 int main(){
     PromiseStore * store = InitPromiseStore();
@@ -363,9 +460,14 @@ int main(){
     th->store = store;
     pthread_create(cleaner_thread_, NULL,cleaner_thread, th);
 
+    pthread_t *loging_thread = malloc(sizeof(pthread_t));
+    pthread_create(loging_thread, NULL, periodic_print, th);
+
+
     for (int x = 0; x < thread_count; x++){
         pthread_join(threads[x], NULL);
     }
     pthread_join(*cleaner_thread_, NULL);
+    pthread_join(*loging_thread, NULL);
     return 0;
-}
+};
