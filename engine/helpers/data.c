@@ -14,6 +14,7 @@ Data *InitDataPoint(){
         return NULL;
     }
     data->type = NONE;
+    data->value = NULL;
     data->data_owned = DATA_NOT_OWNED;
     return data;
 }
@@ -27,6 +28,9 @@ Data *InitDataPoint(){
 int WriteData(Data *data, type type,void *value, bool owned){
     if (!data)
         return -1;
+    if (!value)
+        return -1;
+
     if (data->type != NONE && (data->type != type)){
         printf("trying to assign a value of type %c to a data point of type %c\n", type, data->type);
         return -1;

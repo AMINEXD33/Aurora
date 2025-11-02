@@ -35,7 +35,6 @@ typedef struct{
     unsigned int waiting_threads;
     unsigned int working_threads;
     unsigned int access_count;
-    struct timeval * last_access;// time stamp
 }Promise;
 
 /*promise store*/
@@ -45,8 +44,6 @@ typedef struct{
     long int count;
     pthread_mutex_t lock;
     pthread_cond_t slot_available;
-    struct timeval * last_cleanup_start;// time stamp
-
     // ema tracking
     double smoothing;
     double ema_occupancy;
@@ -56,8 +53,13 @@ typedef struct{
     double threshold;
     double min_threshold;
     double max_threshold;
-    double max_recorded;
 }PromiseStore;
+
+typedef struct{
+    PromiseStore *store;
+    int id;
+    bool stop_flag;
+}thread_info;
 
 /*file structure*/
 typedef struct{
@@ -76,12 +78,16 @@ typedef struct{
 }Args;
 
 // functions
+
+// files
 File_object *init_fileobject();
 void free_close_fileobject(File_object *fileobject);
 char *getFileName(const char *path);
 File_object * assign_error(File_object *fileobj);
 File_object * open_file_read_mode(char *path);
 char * read_file(File_object *fileobject);
+
+// data points
 Data *InitDataPoint();
 int WriteData(Data *data, type type,void *value, bool owned);
 char *ReadDataStr(Data *data);
@@ -91,12 +97,15 @@ float *ReadDataFloat(Data *data);
 double *ReadDataDouble(Data *data);
 void FreeDataPoint(Data *data);
 
-
-
-
-
-
-
+// promise
+PromiseStore *InitPromiseStore();
+void free_promise_store(PromiseStore *store);
+Promise *get_create_promise(PromiseStore *store, const char *key);
+bool claim_work(Promise *promise);
+void publish(Promise *promise, Data *result);
+Data *wait_for_result(Promise *promise);
+void done_with_promise_data(Promise *promise);
+void *cleaner_thread(void *arg);
 
 
 #endif
