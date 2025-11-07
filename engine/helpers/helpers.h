@@ -16,13 +16,21 @@
 #define DATA_OWNED true 
 #define DATA_NOT_OWNED false 
 
-typedef enum {STRING, BOOLEAN, NONE, INT, FLOAT, DOUBLE} type;
+typedef enum {STRING, BOOLEAN, NONE, INT, FLOAT, DOUBLE, ARRAY} type;
 /*data representation*/
+
+
 typedef struct {
     void *value;
     type type; 
     bool data_owned;
 }Data;
+
+typedef struct {
+    Data **array;
+    unsigned long int size;
+    unsigned long int index;
+}Array;
 
 typedef enum {READY, COMPUTING, PENDING} status;
 /*promis structure*/
@@ -97,6 +105,10 @@ bool *ReadDataBool(Data *data);
 float *ReadDataFloat(Data *data);
 double *ReadDataDouble(Data *data);
 void FreeDataPoint(Data *data);
+int append_datapoint(Array *array, Data *appended_value);
+void free_array(Array *array);
+int resize(Array *array);
+Array *InitDataPointArray();
 
 // promise
 PromiseStore *InitPromiseStore(
