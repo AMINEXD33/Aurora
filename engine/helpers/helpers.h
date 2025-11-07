@@ -79,6 +79,7 @@ typedef struct{
 
 // functions
 
+void *get_nested_values(cJSON *json,type type,  unsigned int argcount, ...);
 // files
 File_object *init_fileobject();
 void free_close_fileobject(File_object *fileobject);
@@ -98,14 +99,19 @@ double *ReadDataDouble(Data *data);
 void FreeDataPoint(Data *data);
 
 // promise
-PromiseStore *InitPromiseStore();
+PromiseStore *InitPromiseStore(
+    unsigned int size,
+    double threshold,
+    double min_threshold,
+    double max_threshold
+);
 void free_promise_store(PromiseStore *store);
 Promise *get_create_promise(PromiseStore *store, const char *key);
 bool claim_work(Promise *promise);
 void publish(Promise *promise, Data *result);
 Data *wait_for_result(Promise *promise);
 void done_with_promise_data(Promise *promise);
-void *cleaner_thread(void *arg);
+double update_store_threshold(PromiseStore *store);
 
 
 #endif

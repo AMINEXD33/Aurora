@@ -27,6 +27,9 @@
         "unistd.h": "c",
         "stdlib.h": "c",
         "stdio.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "init.h": "c",
+        "jobs.h": "c",
+        "pthread.h": "c"
     }
 }

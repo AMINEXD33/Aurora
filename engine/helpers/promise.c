@@ -4,26 +4,43 @@
 /**
  * initiate Promise store
  */
-PromiseStore *InitPromiseStore(){
+PromiseStore *InitPromiseStore(
+    unsigned int size,
+    double threshold,
+    double min_threshold,
+    double max_threshold
+){
     PromiseStore *store = calloc(1, sizeof(PromiseStore));
     if (!store){
         printf("can't allocate memory for the promise store\n");
         return NULL;
     }
-    store->promises = calloc(10000, sizeof(Promise*));
+    if (size < 1){
+        printf("promise store size can't be less than 1\n");
+        return NULL;
+    }
+    if (threshold < 0 || min_threshold < 0 || max_threshold < 0){
+        printf("threashold/ min_threshold/ max_threshold can't be negative\n");
+        return NULL;
+    }
+    if (min_threshold > max_threshold){
+        printf("min threshold can't be sup than max threshold\n");
+        return NULL;
+    }
+    store->promises = calloc(size, sizeof(Promise*));
     if (!store->promises){
         printf("can't allocate memory for promises pointers\n");
         free(store);
         return NULL;
     }
     store->count = 0;
-    store->capacity = 10000;
+    store->capacity = size;
     store->smoothing = 0.1;
     store->ema_occupancy = 0.0;
     store->prev_ema = 0.0;
-    store->threshold = 10;
-    store->min_threshold = 1;
-    store->max_threshold = 100;
+    store->threshold = threshold;
+    store->min_threshold = min_threshold;
+    store->max_threshold = max_threshold;
     // initiate the cleanup with time of creation
     pthread_mutex_init(&store->lock, NULL);
     pthread_cond_init(&store->slot_available, NULL);
@@ -302,76 +319,3 @@ double update_store_threshold(PromiseStore *store){
 
     return store->threshold;
 }
-
-
-
-/**
- * the cleaner thread , updates the threshold and frees 
- * cache that is bellow that threshold ofc if it's not used 
- * or awaited by an other thread
- * 
- * ### return:
- *  `void *`
- */
-void *cleaner_thread(void *arg){
-    thread_info *args = (thread_info *)arg;
-    PromiseStore *store = args->store;
-    // see delta of last clean
-    while(true){
-        if (args->stop_flag){
-            break;
-        }
-        double occupancy = ((double)store->count / (double)store->capacity) * 100;
-        // don't start cleaning when the occuancy is bellow 50%
-        if (occupancy < 50){
-            sleep(0.1);
-        }
-        // lock the store
-        pthread_mutex_lock(&store->lock);
-        // get the new threshold
-        double threshold = update_store_threshold(store);
-        // for every promise
-        for (unsigned long int index = 0; index < store->capacity; index ++){
-            Promise *promise = store->promises[index];
-            // if this slot is empty skip
-            if (promise == NULL) continue;
-            // update max access count (max threshold)
-            if (promise->access_count > store->max_threshold){
-                store->max_threshold = promise->access_count;
-            }
-            // if this cash needs to get cleaned
-            if (threshold >= promise->access_count){
-                // ofc free when no thread is working or waiting for the data
-                //printf("waiting thread %d\nworking threads %d\n",promise->waiting_threads,
-                //promise->working_threads);
-                if (promise->waiting_threads == 0 && promise->working_threads == 0) {
-                    // try to lock promise
-                    if (pthread_mutex_trylock(&promise->lock) != 0)
-                        continue;
-                    // free the key
-                    free(promise->key);
-                    // free the data point associated with it
-                    FreeDataPoint(promise->data);
-                    // unlock the promise
-                    pthread_mutex_unlock(&promise->lock);
-                    // destroy the lock and flag
-                    pthread_mutex_destroy(&promise->lock);
-                    pthread_cond_destroy(&promise->ready);
-                    // free promise
-                    free(promise);
-                    // update the pointer to null
-                    store->promises[index] = NULL;
-                    // update the count
-                    store->count--;
-                    // broadcast that we cleaned it , for any thread waiting for a free slot
-                    pthread_cond_broadcast(&store->slot_available);
-                }
-            }
-        }
-        // unlock the store
-        pthread_mutex_unlock(&store->lock);
-        sleep(0.5);
-    }
-}
-
-

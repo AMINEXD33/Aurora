@@ -60,8 +60,8 @@ File_object * assign_error(File_object *fileobj){
                 strcat(error,"file doesn't exist : ");
                 break;
             case(EACCES):
-                strcat(error,"no permition to read file : ");
-                break;// noo permisions
+                strcat(error,"no permission to read file : ");
+                break;// no permissions
             case(EISDIR):
                 strcat(error,"this is a directory : ");
                 break; // this is a dir

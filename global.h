@@ -3,7 +3,7 @@
 
 // variable that won't change at run time
 
-#define core_config "../../core.json"
+#define CORE_CONFIG_PATH "core.json"
 
 
 

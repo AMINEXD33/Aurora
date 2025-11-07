@@ -1,9 +1,9 @@
 {
-    "age": 18,
-    "name":"amine meftah",
-    "threads": 3,
-    "cpu":{
-        "cores":12,
-        "clock":"2.5GH"
-    }
+    "cores": 4,
+    "threads": 4,
+    "shared_momory_unites": 1200,
+    "threshold": 10,
+    "min_threshold": 1,
+    "max_threshold": 100
+
 }
