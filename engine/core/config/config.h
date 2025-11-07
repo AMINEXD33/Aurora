@@ -5,12 +5,12 @@
 #include "../../helpers/helpers.h"
 
 cJSON *INIT_CORE_CONFIG();
-int *GET_CORE_COUNT(cJSON *json);
-int *GET_THREAD_COUNT(cJSON *json);
-int *GET_MAX_THRESHOLD(cJSON *json);
-int *GET_MIN_THRESHOLD(cJSON *json);
-int *GET_THRESHOLD(cJSON *json);
-int *GET_SHARED_MEMORY_UNITES(cJSON *json);
+int GET_CORE_COUNT(cJSON *json);
+int GET_THREAD_COUNT(cJSON *json);
+double GET_MAX_THRESHOLD(cJSON *json);
+double GET_MIN_THRESHOLD(cJSON *json);
+double GET_THRESHOLD(cJSON *json);
+int GET_SHARED_MEMORY_UNITES(cJSON *json);
 
 
 

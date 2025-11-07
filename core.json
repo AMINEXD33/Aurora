@@ -1,9 +1,9 @@
 {
     "cores": 4,
-    "threads": 4,
-    "shared_momory_unites": 1200,
-    "threshold": 10,
-    "min_threshold": 1,
-    "max_threshold": 100
+    "threads": 10,
+    "shared_memory_units": 1200,
+    "threshold": 10.00,
+    "min_threshold": 1.00,
+    "max_threshold": 100.00
 
 }
