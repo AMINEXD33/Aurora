@@ -4,6 +4,7 @@
 #include "../../helpers/helpers.h"
 #include <math.h>
 #include <pthread.h>
+#include "../clientserver/clientserver.h"
 
 typedef struct{
     PromiseStore * store;

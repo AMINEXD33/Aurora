@@ -13,26 +13,38 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <math.h>
+#include <stdint.h>
+
 #define DATA_OWNED true 
 #define DATA_NOT_OWNED false 
 
-typedef enum {STRING, BOOLEAN, NONE, INT, FLOAT, DOUBLE, ARRAY} type;
+typedef enum {STRING, BOOLEAN, NONE, INT, FLOAT, DOUBLE, LONG} type;
+
 /*data representation*/
 
-
 typedef struct {
-    void *value;
+    union {
+        int int_val;
+        long long_val;
+        float float_val;
+        double double_val;
+        char* string_val;
+        bool bool_val;
+    } value;
+    char *key; // not used normally, only when used as cache
     type type; 
     bool data_owned;
 }Data;
 
 typedef struct {
     Data **array;
+    char *key; // not used normally, only when used as cache
     unsigned long int size;
     unsigned long int index;
 }Array;
 
 typedef enum {READY, COMPUTING, PENDING} status;
+
 /*promis structure*/
 typedef struct{
     char *key;
@@ -97,8 +109,9 @@ File_object * open_file_read_mode(char *path);
 char * read_file(File_object *fileobject);
 
 // data points
-Data *InitDataPoint();
-int WriteData(Data *data, type type,void *value, bool owned);
+
+
+Data *InitDataPoint(char *key);
 char *ReadDataStr(Data *data);
 int *ReadDataInt(Data *data);
 bool *ReadDataBool(Data *data);
@@ -108,7 +121,15 @@ void FreeDataPoint(Data *data);
 int append_datapoint(Array *array, Data *appended_value);
 void free_array(Array *array);
 int resize(Array *array);
-Array *InitDataPointArray();
+Array *InitDataPointArray(char *key);
+void printArray(Array *arr);
+void printDataPoint(Data *d, char *format);
+int WriteDataString(Data *data,char *value);
+int WriteDataInt(Data *data,int value);
+int WriteDataFloat(Data *data,float value);
+int WriteDataDouble(Data *data,double value);
+int WriteDataBool(Data *data,bool value);
+int WriteDataLong(Data *data,long value);
 
 // promise
 PromiseStore *InitPromiseStore(
@@ -125,5 +146,11 @@ Data *wait_for_result(Promise *promise);
 void done_with_promise_data(Promise *promise);
 double update_store_threshold(PromiseStore *store);
 
-
+size_t estimate_size_array_data(Array *arr);
+void TagBuffer(uint8_t *buffer, size_t *offset);
+size_t estimate_size_data(Data *d);
+Array *deserialize_array_data(uint8_t *buffer, size_t *offset);
+Data* deserialize_data(uint8_t *buffer, size_t *offset);
+size_t serialize_array_of_data(Array *arr, uint8_t *buffer);
+size_t serialize_data(Data *d, uint8_t *buffer);
 #endif

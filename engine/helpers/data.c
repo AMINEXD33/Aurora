@@ -7,19 +7,30 @@
  *  `Data *` if successful
  *  `NULL` on error
  */
-Data *InitDataPoint(){
+Data *InitDataPoint(char *key){
     Data *data = calloc(1, sizeof(Data));
     if (!data){
         perror("can't allocate mem for a data point\n");
         return NULL;
     }
     data->type = NONE;
-    data->value = NULL;
     data->data_owned = DATA_NOT_OWNED;
+    
+    if (key){
+        char *cpy_key = calloc(1, strlen(key)+1);
+        strcpy(cpy_key, key);
+        data->key = cpy_key;
+    }
     return data;
 }
 
-Array *InitDataPointArray(){
+/**
+ * initiat an array for datapoints
+ * ### return:
+ *  `Array *`: if successfull
+ *  `NULL`: if the structure can't be allocated or the pointers array can't be allocated
+ */
+Array *InitDataPointArray(char *key){
     Array *array = malloc(sizeof(Array));
     if (!array){
         printf("can'r allocate mem for array structure\n");
@@ -33,30 +44,68 @@ Array *InitDataPointArray(){
 
     array->index = 0;
     array->size = 10;
+    if (key){
+        char *cpy_key = calloc(1, strlen(key)+1);
+        strcpy(cpy_key, key);
+        array->key = cpy_key;
+    }
     return array;
 }
 
-/**
- * write data to a datapoint
- * the function checks type only if the datapoint is already writen into 
- * ### return :
- *  `void`
- */
-int WriteData(Data *data, type type,void *value, bool owned){
+
+int WriteDataString(Data *data,char *value){
     if (!data)
         return -1;
     if (!value)
         return -1;
-
-    if (data->type != NONE && (data->type != type)){
-        printf("trying to assign a value of type %c to a data point of type %c\n", type, data->type);
-        return -1;
-    }
-    data->value = value;
-    data->type = type;
-    data->data_owned = owned;
+    char *cpy = calloc(1, strlen(value) + 1);
+    strcpy(cpy, value);
+    data->value.string_val = cpy;
+    data->type = STRING;
+    data->data_owned = DATA_OWNED;
     return 1;
 }
+int WriteDataInt(Data *data,int value){
+    if (!data)
+        return -1;
+    data->value.int_val = value;
+    data->type = INT;
+    data->data_owned = DATA_OWNED;
+    return 1;
+}
+int WriteDataLong(Data *data,long value){
+    if (!data)
+        return -1;
+    data->value.long_val = value;
+    data->type = LONG;
+    data->data_owned = DATA_OWNED;
+    return 1;
+}
+int WriteDataFloat(Data *data,float value){
+    if (!data)
+        return -1;
+    data->value.float_val = value;
+    data->type = FLOAT;
+    data->data_owned = DATA_OWNED;
+    return 1;
+}
+int WriteDataDouble(Data *data,double value){
+    if (!data)
+        return -1;
+    data->value.double_val = value;
+    data->type = DOUBLE;
+    data->data_owned = DATA_OWNED;
+    return 1;
+}
+int WriteDataBool(Data *data,bool value){
+    if (!data)
+        return -1;
+    data->value.bool_val = value;
+    data->type = BOOLEAN;
+    data->data_owned = DATA_OWNED;
+    return 1;
+}
+
 /**
  * read a string from a data type
  * ### return:
@@ -67,10 +116,10 @@ char *ReadDataStr(Data *data){
     if (!data)
         return NULL;
     if (data->type != STRING){
-        printf("trying to read a char out of a type %c data point\n", data->type);
+        printf("trying to read a string out of a type %c data point\n", data->type);
         return NULL;
     }
-    return (char*) data->value;
+    return data->value.string_val;
 }
 /**
  * read an int from a data type
@@ -82,10 +131,10 @@ int *ReadDataInt(Data *data){
     if (!data)
         return NULL;
     if (data->type != INT){
-        printf("trying to read a char out of a type %c data point\n", data->type);
+        printf("trying to read a int out of a type %c data point\n", data->type);
         return NULL;
     }
-    return (int*) data->value;
+    return &data->value.int_val;
 }
 /**
  * read a boolean from a data type
@@ -97,10 +146,10 @@ bool *ReadDataBool(Data *data){
     if (!data)
         return NULL;
     if (data->type != BOOLEAN){
-        printf("trying to read a char out of a type %c data point\n", data->type);
+        printf("trying to read a bool out of a type %c data point\n", data->type);
         return NULL;
     }
-    return (bool*) data->value;
+    return &data->value.bool_val;
 }
 /**
  * read a float from a data type
@@ -112,10 +161,10 @@ float *ReadDataFloat(Data *data){
     if (!data)
         return NULL;
     if (data->type != FLOAT){
-        printf("trying to read a char out of a type %c data point\n", data->type);
+        printf("trying to read a float out of a type %c data point\n", data->type);
         return NULL;
     }
-    return (float*) data->value;
+    return &data->value.float_val;
 }
 /**
  * read a double from a data type
@@ -124,16 +173,29 @@ float *ReadDataFloat(Data *data){
  *  `NULL` on error
  */
 double *ReadDataDouble(Data *data){
-
     if (!data)
         return NULL;
     if (data->type != DOUBLE){
-        printf("trying to read a char out of a type %c data point\n", data->type);
+        printf("trying to read a double out of a type %c data point\n", data->type);
         return NULL;
     }
-    return (double*) data->value;
+    return &data->value.double_val;
 }
-
+/**
+ * read a long from a data type
+ * ### return:
+ *  `double *` if successful 
+ *  `NULL` on error
+ */
+long *ReadDataLong(Data *data){
+    if (!data)
+        return NULL;
+    if (data->type != LONG){
+        printf("trying to read a double out of a type %c data point\n", data->type);
+        return NULL;
+    }
+    return &data->value.long_val;
+}
 /**
  * resize an array , each resize adds 1.3 the size of the array
  * ### return:
@@ -160,7 +222,10 @@ void free_array(Array *array){
         FreeDataPoint(array->array[index]);
     }
     free(array->array);
+    if (array->key)
+        free(array->key);
     free(array);
+    
 }
 
 /**
@@ -193,17 +258,60 @@ int append_datapoint(Array *array, Data *appended_value){
 void FreeDataPoint(Data *data){
     if (!data)
         return;
-    if (data->data_owned == true)
-        free(data->value);
+    if (data->data_owned == true){
+        if (data->type == STRING)
+            free(data->value.string_val);
+    }
+    if (data->key)
+        free(data->key);
     free(data);
 }
 
 
 
+/**
+ * print a datapoint 
+ */
+void printDataPoint(Data *d, char *end_with){
+    char *format = end_with;
+    if (!format){
+        format = "\n";
+    }
+    switch (d->type)
+    {
+    case STRING:
+        printf("(str)'%s'\n", ReadDataStr(d));
+        break;
+    case INT:
+        printf("(int)%d\n", *ReadDataInt(d));
+        break;
+    case LONG:
+        printf("(long)%ld\n", *ReadDataLong(d));
+        break;
+    case FLOAT:
+        printf("(float)%f\n", *ReadDataFloat(d));
+        break;
+    case DOUBLE:
+        printf("(double)%lf\n", *ReadDataDouble(d));
+        break;
+    case BOOLEAN:
+        printf("(bool)%d\n", *ReadDataBool(d));
+    default:
+        break;
+    }
+}
 
-
-
-
+/**
+ * print an array
+ */
+void printArray(Array *arr){
+    printf("[ \n");
+    for (unsigned int x = 0; x < arr->index; x++){
+        Data *d = arr->array[x];
+        printDataPoint(d, " ,\n");
+    }
+    printf("]\n");
+}
 
 
 // remove comment to see how it works 
@@ -268,21 +376,23 @@ void FreeDataPoint(Data *data){
 // }
 
 
-int main (){
-    Array *array = InitDataPointArray();
+// int main (){
+//     Array *array = InitDataPointArray("test");
 
-    for (int x = 0; x < 100000; x++){
-        Data *datapoint = InitDataPoint();
-        int *num = malloc(sizeof(int));
-        *num = x;
-        WriteData(datapoint, INT, num, DATA_OWNED);
-        append_datapoint(array,datapoint);
-    }
-    for (int x = 0; x < array->index; x++){
-        Data *datapoint = array->array[x];
-        int *value = ReadDataInt(datapoint);
-    }
-    printf("final size of the array %ld \n", array->size);
-    free_array(array);
-    return 0;
-}
+//     for (int x = 0; x < 100000; x++){
+//         Data *datapoint = InitDataPoint("test2");
+//         if (x % 2){
+//             WriteDataFloat(datapoint, 1214.124);
+//         }else{
+//             WriteDataString(datapoint, "asdioahfa");
+//         }
+//         append_datapoint(array,datapoint);
+//     }
+//     for (int x = 0; x < array->index; x++){
+//         Data *datapoint = array->array[x];
+//         printDataPoint(datapoint, "\n");
+//     }
+//     printf("final size of the array %ld \n", array->size);
+//     free_array(array);
+//     return 0;
+// }

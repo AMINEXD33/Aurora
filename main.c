@@ -2,8 +2,10 @@
 #include "./engine/core/jobs/jobs.h"
 #include "./engine/helpers/helpers.h"
 #include "./engine/core/config/config.h"
-
-
+#include <stdio.h>      // for printf, perror
+#include <stdlib.h>     // for exit
+#include <unistd.h>     // for fork, getpid, getppid
+#include <sys/wait.h> 
 int main (char **argc, int argv){
     cJSON *core_config =  INIT_CORE_CONFIG();
     int thread_count = GET_THREAD_COUNT(core_config);
@@ -31,8 +33,22 @@ int main (char **argc, int argv){
         worker_thread,
         cleaner_thread
     );
-
-    cJSON_Delete(core_config);
-
+    for (unsigned int i = 0; i < core_count; i++) {
+        pid_t p = fork();
+        if (p < 0) {
+            perror("fork failed");
+            exit(1);
+        }
+        if (p == 0) {
+            // child
+            printf("[child %u] pid=%d ppid=%d\n", i, getpid(), getppid());
+            // Do child work here...
+            exit(0); // IMPORTANT: prevent it from re-running the loop
+        }
+        // parent continues to next iteration
+        // wait(NULL);
+    }
+    printf("[MOTHER SHIP] \n");
+    printf("starting sockets \n");
     return 1;
 }

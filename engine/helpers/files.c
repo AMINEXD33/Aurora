@@ -108,6 +108,8 @@ File_object * open_file_read_mode(char *path){
     return fileobj;
 } 
 
+
+
 /**
  * read the whole file and return the buffer
  * ### return:

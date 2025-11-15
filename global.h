@@ -4,7 +4,7 @@
 // variable that won't change at run time
 
 #define CORE_CONFIG_PATH "core.json"
-
+#define MODULES_PATH "../../../modules"
 
 
 
