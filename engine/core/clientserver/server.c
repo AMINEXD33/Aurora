@@ -1,8 +1,5 @@
 #include "./clientserver.h"
 
-int server_fd;
-
-
 /**
  * write data in partitions
  * ### return:
@@ -73,7 +70,7 @@ bool check_magic_number(uint8_t *buffer){
  *  `NULL` : on read size fail or can't allocate buffer or can't read buffer
  *   or the buffer is incomplete and finally if the magic number is not a match   
  */
-Data * handle_data(int client_fd){
+Data * handle_data(int client_fd, PromiseStore *store){
     size_t size_of_buff;
     ssize_t n = read_all(client_fd, &size_of_buff, sizeof(size_t));
     if(n != sizeof(size_t))
@@ -112,9 +109,33 @@ Data * handle_data(int client_fd){
         printf("data key=> %s\n", data->key);
     printDataPoint(data, "\n");
     free(buffer);
+
+    printf("adding data into cache\n");
+    Promise *promise = get_create_promise(store, data->key);
+    // when calling this function to publish work we expect that you've already 
+    // claimed the work for this key, thus we're expecting this
+    // promise state to be COMPUTING
+    if(promise->status != COMPUTING){
+        printf("[x] we expect the promise to be COMPUTING not\n");
+        return data;
+    }
+    // publish
+    publish(promise, data);
+    printf("[v] data piblished\n");
     return data;
 }
 
+char *handle_claiming_work(int client_fd, PromiseStore *store){
+    size_t size_of_buff;
+    ssize_t n = read_all(client_fd, &size_of_buff, sizeof(size_t));
+    if(n != sizeof(size_t))
+    {
+        perror("read failed 4\n");
+        return NULL;
+    }
+    uint8_t *buffer = calloc(1, size_of_buff);
+    
+}
 /**
  * handle receiving data of type Array from the sender process
  * ### return:
@@ -122,7 +143,7 @@ Data * handle_data(int client_fd){
  *  `NULL` : on read size fail or can't allocate buffer or can't read buffer
  *   or the buffer is incomplete and finally if the magic number is not a match   
  */
-Array *handle_array(int client_fd){
+Array *handle_array(int client_fd, PromiseStore *store){
     size_t size_of_buff;
     ssize_t n = read_all(client_fd, &size_of_buff, sizeof(size_t));
     if(n != sizeof(size_t))
@@ -181,8 +202,9 @@ bool do_keep_alive(int client_fd){
  * the thread function to handle incoming clients
  */
 void* handle_client(void* arg){
-    int client_fd = *(int*)arg;
-    free(arg);
+    server_arg *args = (server_arg *)arg;
+    int client_fd = args->client_fd;
+    PromiseStore *store = args->store;
     // flag to keep conn alive
     bool flag = true;
 
@@ -201,7 +223,7 @@ void* handle_client(void* arg){
         {
             case EXPECT_DATA:
                 printf("\tdata \n");
-                Data *dt = handle_data(client_fd);
+                Data *dt = handle_data(client_fd, store);
                 if (dt == NULL){
                     // handle if this fails  (can't get Data)
                 }else{
@@ -211,13 +233,16 @@ void* handle_client(void* arg){
                 break;
             case EXPECT_ARRAY:
                 printf("\tarray \n");
-                Array *arr = handle_array(client_fd);
+                Array *arr = handle_array(client_fd, store);
                 if (arr == NULL){
                     // handle if this fails (can't get Array)
                 }else{
                     free_array(arr);
                 }
                 break;
+            case EXPECT_CLAIM_WORK:
+                printf("claiming work\n");
+                char *key = handle_claiming_work(client_fd, store);
             default:
                 break;
         }
@@ -231,42 +256,10 @@ void* handle_client(void* arg){
     // close conn
     close(client_fd);
     printf("\nthread done !\n");
+    free(arg);
     return NULL;
 }
 
-/**
- * function that spawns threads to handle incoming 
- * requests
- */
-void Server_init_multithread() {
-    // set up socket
-    struct sockaddr_un addr;
-    addr.sun_family = AF_UNIX;
-    strcpy(addr.sun_path, SOCKET_PATH);
-    unlink(SOCKET_PATH);
-    server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    // bind
-    if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        perror("bind"); exit(1);
-    }
-    // listen to up 5 connections
-    listen(server_fd, 5);
-    printf("[v] server is listening on 127.0.0.1\n");
-    bool flag = true;
-    while (flag) {
-        flag = false;
-        // accept incoming client 
-        int *client_fd = malloc(sizeof(int));
-        *client_fd = accept(server_fd, NULL, NULL);
-        // on error
-        if (*client_fd < 0) { perror("accept"); free(client_fd); continue; }
-        // spawn a handler thread
-        pthread_t tid;
-        pthread_create(&tid, NULL, handle_client, client_fd);
-        pthread_join(tid, NULL);
-        //pthread_detach(tid); // don't need to join
-    }
-}
 
 // int main(){
 //     Server_init_multithread();

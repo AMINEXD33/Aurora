@@ -1,6 +1,5 @@
 #include "./helpers.h"
 
-
 /**
  * init a Datapoint
  * ### return: 
@@ -52,7 +51,12 @@ Array *InitDataPointArray(char *key){
     return array;
 }
 
-
+/**
+ * write a string into a Data struct
+ * ### return:
+ *  `1`: if successfull
+ *  `-1`: no Data struct is passed or no value is passed
+ */
 int WriteDataString(Data *data,char *value){
     if (!data)
         return -1;
@@ -65,6 +69,13 @@ int WriteDataString(Data *data,char *value){
     data->data_owned = DATA_OWNED;
     return 1;
 }
+
+/**
+ * write a int into a Data struct
+ * ### return:
+ *  `1`: if successfull
+ *  `-1`: no Data struct is passed
+ */
 int WriteDataInt(Data *data,int value){
     if (!data)
         return -1;
@@ -73,6 +84,13 @@ int WriteDataInt(Data *data,int value){
     data->data_owned = DATA_OWNED;
     return 1;
 }
+
+/**
+ * write a long into a Data struct
+ * ### return:
+ *  `1`: if successfull
+ *  `-1`: no Data struct is passed 
+ */
 int WriteDataLong(Data *data,long value){
     if (!data)
         return -1;
@@ -81,6 +99,13 @@ int WriteDataLong(Data *data,long value){
     data->data_owned = DATA_OWNED;
     return 1;
 }
+
+/**
+ * write a float into a Data struct
+ * ### return:
+ *  `1`: if successfull
+ *  `-1`: no Data struct is passed
+ */
 int WriteDataFloat(Data *data,float value){
     if (!data)
         return -1;
@@ -89,6 +114,13 @@ int WriteDataFloat(Data *data,float value){
     data->data_owned = DATA_OWNED;
     return 1;
 }
+
+/**
+ * write a double into a Data struct
+ * ### return:
+ *  `1`: if successfull
+ *  `-1`: no Data struct is passed
+ */
 int WriteDataDouble(Data *data,double value){
     if (!data)
         return -1;
@@ -97,6 +129,13 @@ int WriteDataDouble(Data *data,double value){
     data->data_owned = DATA_OWNED;
     return 1;
 }
+
+/**
+ * write a bool into a Data struct
+ * ### return:
+ *  `1`: if successfull
+ *  `-1`: no Data struct is passed
+ */
 int WriteDataBool(Data *data,bool value){
     if (!data)
         return -1;
@@ -121,6 +160,7 @@ char *ReadDataStr(Data *data){
     }
     return data->value.string_val;
 }
+
 /**
  * read an int from a data type
  * ### return:
@@ -136,6 +176,7 @@ int *ReadDataInt(Data *data){
     }
     return &data->value.int_val;
 }
+
 /**
  * read a boolean from a data type
  * ### return:
@@ -151,6 +192,7 @@ bool *ReadDataBool(Data *data){
     }
     return &data->value.bool_val;
 }
+
 /**
  * read a float from a data type
  * ### return:
@@ -166,6 +208,7 @@ float *ReadDataFloat(Data *data){
     }
     return &data->value.float_val;
 }
+
 /**
  * read a double from a data type
  * ### return:
@@ -181,6 +224,7 @@ double *ReadDataDouble(Data *data){
     }
     return &data->value.double_val;
 }
+
 /**
  * read a long from a data type
  * ### return:
@@ -196,6 +240,7 @@ long *ReadDataLong(Data *data){
     }
     return &data->value.long_val;
 }
+
 /**
  * resize an array , each resize adds 1.3 the size of the array
  * ### return:
@@ -251,7 +296,6 @@ int append_datapoint(Array *array, Data *appended_value){
     return 1;
 }
 
-
 /**
  * free the datapoint , free the value only if it's owned ,
  */
@@ -266,8 +310,6 @@ void FreeDataPoint(Data *data){
         free(data->key);
     free(data);
 }
-
-
 
 /**
  * print a datapoint 

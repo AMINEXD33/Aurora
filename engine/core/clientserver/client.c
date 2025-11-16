@@ -267,10 +267,14 @@ void TEST_SEND_VALID_DATA(int sock){
     free_array(arr);
 }
 
-int main() {
+int sendstuff() {
     struct sockaddr_un *addr = get_addr();
     if (!addr){
         return -1;
+    }
+    while (access(SOCKET_PATH, F_OK) != 0) {
+        printf("DAMN waiting for server tp start \n");
+        usleep(1000); // wait 1ms
     }
     int sock = start_connection(addr);
     if (!sock){
