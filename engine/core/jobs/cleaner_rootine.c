@@ -46,7 +46,8 @@ void *cleaner_thread(void *arg){
                     // free the key
                     free(promise->key);
                     // free the data point associated with it
-                    FreeDataPoint(promise->data);
+                    FreeDataPoint(promise->datatype.data);
+                    free_array(promise->datatype.array);
                     // unlock the promise
                     pthread_mutex_unlock(&promise->lock);
                     // destroy the lock and flag

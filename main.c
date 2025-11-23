@@ -26,7 +26,7 @@ int main (char **argc, int argv){
     printf("---------------------------------\n");
 
 
-        // create promise store
+    // create promise store
     PromiseStore* store = InitPromiseStore(
         shared_mem_unites,
         threshold,

@@ -380,6 +380,7 @@ void TagBuffer(uint8_t *buffer, size_t *offset){
     uint32_t magic = MAGIC_NUMBER;
     memcpy(buffer, &magic, sizeof(uint32_t));
     *offset += sizeof(uint32_t);
+    
 }
 // int main (){
 //     int number = 12314;

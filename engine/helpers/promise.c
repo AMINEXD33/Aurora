@@ -55,7 +55,8 @@ void free_promise_store(PromiseStore *store){
         if (!promise) continue;
         pthread_mutex_lock(&promise->lock);
         free(promise->key);
-        FreeDataPoint(promise->data);
+        FreeDataPoint(promise->datatype.data);
+        free_array(promise->datatype.array);
         
         pthread_mutex_unlock(&promise->lock);
         pthread_mutex_destroy(&promise->lock);
@@ -85,7 +86,26 @@ long int find_empty_slot(PromiseStore *store){
     }
     return -1;
 }
-
+Promise *get_promise(PromiseStore *store, const char *key){
+    for (long int index = 0; index < store->capacity; index++){
+    if (store->promises[index]){
+        if (strcmp(store->promises[index]->key, key) == 0){
+            Promise *promise = store->promises[index];
+            
+            pthread_mutex_lock(&promise->lock);
+            // this cashe is accessed one more time
+            promise->access_count += 1;
+            pthread_mutex_unlock(&promise->lock);
+            // unlock store here sinse we returning
+            pthread_mutex_unlock(&store->lock);
+            //printf("[Thread %lu] Found existing: %s\n", 
+                    //pthread_self(), key);
+            return promise;
+        }
+    }
+    return NULL;
+}
+}
 /**
  * create a new promise or return an already created one with the same
  * key , if no memory available for the new promise this function will
@@ -147,7 +167,8 @@ Promise *get_create_promise(PromiseStore *store, const char *key){
     promise->key = calloc(strlen(key) + 1, sizeof(char));
     strcpy(promise->key, key);
     promise->status = PENDING;
-    promise->data = NULL;
+    promise->datatype.array = NULL;
+    promise->datatype.data = NULL;
     promise->access_count = 100;
     promise->waiting_threads = 0;
     promise->working_threads = 0;
@@ -198,7 +219,7 @@ bool claim_work(Promise *promise){
 /**
  * publish the result of a promise with waiting threads
  */
-void publish(Promise *promise, Data *result){
+void publishData(Promise *promise, Data *result){
     if (!promise){
         printf("you need to pass a promise\n");
         return;
@@ -210,7 +231,7 @@ void publish(Promise *promise, Data *result){
     //printf("publishing key %s\n", promise->key);
     pthread_mutex_lock(&promise->lock);
     // append data
-    promise->data = result;
+    promise->datatype.data = result;
     // set as ready
     promise->status = READY;
     pthread_cond_broadcast(&promise->ready);
@@ -218,9 +239,30 @@ void publish(Promise *promise, Data *result){
 }
 
 /**
- * wait for a promise to resolse
+ * publish the result of a promise with waiting threads
  */
-Data *wait_for_result(Promise *promise){
+void publishArray(Promise *promise, Array *result){
+    if (!promise){
+        printf("you need to pass a promise\n");
+        return;
+    }
+    if (!result){
+        printf("you need to pass a result\n");
+        return;
+    }
+    //printf("publishing key %s\n", promise->key);
+    pthread_mutex_lock(&promise->lock);
+    // append data
+    promise->datatype.array = result;
+    // set as ready
+    promise->status = READY;
+    pthread_cond_broadcast(&promise->ready);
+    pthread_mutex_unlock(&promise->lock);
+}
+/**
+ * wait for a promise of datatype Data to resolse
+ */
+Data *wait_for_result_data(Promise *promise){
     pthread_mutex_lock(&promise->lock);
     // point out that a thread is waiting for this data
     promise->waiting_threads++;
@@ -235,11 +277,33 @@ Data *wait_for_result(Promise *promise){
     // point out that the thread is working with data
     promise->working_threads++;
     // get data
-    Data *result = promise->data;
+    Data *result = promise->datatype.data;
     pthread_mutex_unlock(&promise->lock);
     return result;
 }
 
+/**
+ * wait for a promise of datatype Array to resolse
+ */
+Array *wait_for_result_array(Promise *promise){
+    pthread_mutex_lock(&promise->lock);
+    // point out that a thread is waiting for this data
+    promise->waiting_threads++;
+    // Wait until result is ready
+    while (promise->status != READY){
+        //printf("waiting for key %s\n",promise->key);
+        // wait for the promise to to be ready
+        pthread_cond_wait(&promise->ready, &promise->lock);
+    }
+    // point out that the thread is no longer waiting for the data
+    promise->waiting_threads--;
+    // point out that the thread is working with data
+    promise->working_threads++;
+    // get data
+    Array *result = promise->datatype.array;
+    pthread_mutex_unlock(&promise->lock);
+    return result;
+}
 /**
  * signal that a thread is done with what ever Promise and Data 
  * he aquired

@@ -49,7 +49,10 @@ typedef enum {READY, COMPUTING, PENDING} status;
 typedef struct{
     char *key;
     status status;
-    Data *data;
+    union{
+        Data *data;
+        Array *array;
+    }datatype;
     pthread_mutex_t lock;
     pthread_cond_t ready;
     unsigned int waiting_threads;
@@ -141,8 +144,12 @@ PromiseStore *InitPromiseStore(
 void free_promise_store(PromiseStore *store);
 Promise *get_create_promise(PromiseStore *store, const char *key);
 bool claim_work(Promise *promise);
-void publish(Promise *promise, Data *result);
-Data *wait_for_result(Promise *promise);
+void publishData(Promise *promise, Data *result);
+void publishArray(Promise *promise, Array *result);
+Promise *get_promise(PromiseStore *store, const char *key);
+Data *wait_for_result_data(Promise *promise);
+Array *wait_for_result_array(Promise *promise);
+
 void done_with_promise_data(Promise *promise);
 double update_store_threshold(PromiseStore *store);
 
