@@ -165,7 +165,7 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
         if (send_buffer_with_retry(client_fd, &resp, sizeof(status), 10) == -1){
             printf("can't send pending response to the client\n");
             free(key);
-            return NULL;
+            return (char *)key;
         }
         printf("sent , PENDING\n");
         return (char *)key;
@@ -176,7 +176,7 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
         if (send_buffer_with_retry(client_fd, &resp, sizeof(status), 10) == -1){
             printf("can't send computing response to the client\n");
             free(key);
-            return NULL;
+            return (char *)key;
         }
         printf("sent , COMPUTING\n");
     }else if(promise->status == READY){
@@ -184,7 +184,7 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
         if (send_buffer_with_retry(client_fd, &resp, sizeof(status), 10) == -1){
             printf("can't send ready response to the client\n");
             free(key);
-            return NULL;
+            return (char *)key;
         }
         printf("sent , READY\n");
     }
@@ -192,66 +192,109 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
 }
 
 int hadle_sending_array(int client_fd, PromiseStore *store){
+    printf("[SERVER] hadle_sending_array called\n");
+    
     // get the size of the buffer for the key
     size_t size_of_buff;
     ssize_t n = read_all(client_fd, &size_of_buff, sizeof(size_t));
+    printf("[SERVER] Read key size: %zd (expected %zu)\n", n, sizeof(size_t));
+    
     if(n != sizeof(size_t))
     {
-        perror("read failed 4\n");
+        perror("[SERVER] read failed 4\n");
         return -1;
     }
+    
+    printf("[SERVER] Key size to read: %zu\n", size_of_buff);
+    
     // read the key (string)
     uint8_t *key = calloc(1, size_of_buff + 1);
     n = read_all(client_fd, key, size_of_buff);
+    printf("[SERVER] Read key: %zd bytes (expected %zu)\n", n, size_of_buff);
+    
     if(n != size_of_buff)
     {
-        perror("read failed 3(ARRAY)\n");
+        perror("[SERVER] read failed 3(ARRAY)\n");
         free(key);
         return -1;
     }
+    
     // null the last byte
     key[size_of_buff] = '\0';
+    printf("[SERVER] Looking for key: '%s'\n", key);
+    
     // try to find the Promise
     Promise *promise = get_promise(store, key);
     
     if (promise == NULL || !promise->datatype.array){
         // cache miss send a size 0
-        printf("[L] NOT F PROMISE WITH KEY %s\n", key);
+        printf("[SERVER] Cache miss for key '%s'\n", key);
         size_t size = 0;
         n = send_buffer_with_retry(client_fd, &size, sizeof(size_t), 10);
-        if(n != sizeof(size_t)){
+        printf("[SERVER] Sent size 0, result: %zd\n", n);
+        if(n == -1){
             free(key);
             return -1;
         }
+        free(key);
         return 0;
     }
+    
     if (promise->status != READY){
-        printf("[L]promise is still computing\n");
+        printf("[SERVER] Promise is still computing (status: %d)\n", promise->status);
+        free(key);
         return -1;
     }
-    printf("WE FOUND THE PROMISE WITH THE KEY %s\n", key);
+    
+    printf("[SERVER] Found promise with key %s\n", key);
     printArray(promise->datatype.array);
+    
     // valid promise 
     size_t estimated_size = estimate_size_array_data(promise->datatype.array) + sizeof(uint32_t);
+    printf("[SERVER] Estimated size: %zu\n", estimated_size);
+    
     // serialize data 
     uint8_t *buffer = calloc(1, estimated_size);
+    if (!buffer){
+        printf("[SERVER] Failed to allocate buffer\n");
+        free(key);
+        return -1;
+    }
+    
     // tag
     size_t offset = 0;
     TagBuffer(buffer, &offset);
+    
     // serialize the array
-    serialize_array_of_data(promise->datatype.array, buffer);
+    serialize_array_of_data(promise->datatype.array, buffer + sizeof(uint32_t));
+    
     // send the expected size to the client
+    printf("[SERVER] Sending size: %zu\n", estimated_size);
     n = send_buffer_with_retry(client_fd, &estimated_size, sizeof(size_t), 10);
-    if(n != sizeof(size_t)){
+    printf("[SERVER] Send size result: %zd\n", n);
+    
+    if(n == -1){
+        printf("[SERVER] Failed to send size\n");
         free(buffer);
+        free(key);
         return -1;
     }
+    
     // send the serialized array
+    printf("[SERVER] Sending buffer of size: %zu\n", estimated_size);
     n = send_buffer_with_retry(client_fd, buffer, estimated_size, 10);
-    if(n != sizeof(size_t)){
+    printf("[SERVER] Send buffer result: %zd\n", n);
+    
+    if(n == -1){
+        printf("[SERVER] Failed to send buffer\n");
         free(buffer);
+        free(key);
         return -1;
     }
+    
+    printf("[SERVER] Successfully sent array\n");
+    free(buffer);
+    free(key);
     return 0;
 }
 /**
@@ -338,14 +381,14 @@ void* handle_client(void* arg){
         if(n != sizeof(mssg_type))
         {
             perror("read failed 1\n");
-            return NULL;
+            continue;
         }
         // based on the type of request
         switch (type)
         {
             // handle a cache request for Data (SET)
             case EXPECT_DATA:
-                printf("\tdata \n");
+                printf("\t[EXPECTED DATA] \n");
                 Data *dt = handle_data(client_fd, store);
                 if (dt == NULL){
                     // handle if this fails  (can't get Data)
@@ -367,7 +410,7 @@ void* handle_client(void* arg){
                 break;
             // handle a cache request for Array (SET)
             case EXPECT_ARRAY:
-                printf("\tarray \n");
+                printf("\t[EXPECTED ARRAY HIT] \n");
                 Array *arr = handle_array(client_fd, store);
                 if (arr == NULL){
                     // handle if this fails (can't get Array)
@@ -388,9 +431,8 @@ void* handle_client(void* arg){
                 break;
             // handle a work claim for some key
             case EXPECT_CLAIM_WORK:
-                printf("claiming work\n");
+                printf("\t[CLAIMING WORK\n");
                 char *key = handle_claiming_work(client_fd, store);
-                printf("[=++++=] key ===== %s\n", key);
                 break;
             // handle getting a promise of type Array
             case GET_ARRAY: 

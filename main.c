@@ -38,23 +38,32 @@ int main (char **argc, int argv){
         return -1;
     }
     printf("[+]store allocated\n");
-    // init the health and cleaner threads
-    INIT_health_cleaner_threads(
-        thread_count,
-        shared_mem_unites,
-        threshold,
-        min_threshold,
-        max_threshold,
-        store,
-        health_thread,
-        cleaner_thread
-    );
+    pid_t p = fork();
+    if (p < 0){
+        printf("failed to fork server\n");
+    }
+    if (p == 0){
+        // init the health and cleaner threads
+        INIT_health_cleaner_threads(
+            thread_count,
+            shared_mem_unites,
+            threshold,
+            min_threshold,
+            max_threshold,
+            store,
+            health_thread,
+            cleaner_thread
+        );
+        // start the server
+        Init_Server_multithread(store);
+        exit(0);
+    }
 
     // spawn children 
     for (unsigned int i = 0; i < core_count; i++) {
         pid_t p = fork();
         if (p < 0) {
-            perror("fork failed");
+            perror("fork failed\n");
             exit(1);
         }
         if (p == 0) {
@@ -71,10 +80,5 @@ int main (char **argc, int argv){
         // parent continues to next iteration
         // wait(NULL);
     }
-
-    printf("[MOTHER SHIP] \n");
-    printf("starting sockets \n");
-    // start the server
-    Init_Server_multithread(store);
     return 1;
 }

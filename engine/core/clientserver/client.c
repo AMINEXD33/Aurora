@@ -228,7 +228,10 @@ int claim_work_client(int sock, char *key, int max_retries){
     }
     status answer;
     printf("== reading the servers answer\n");
-    read_all(sock, &answer, sizeof(status));
+    ssize_t n = read_all(sock, &answer, sizeof(status));
+    if (n != sizeof(status)){
+        return -1;
+    }
     printf("SERVER ANSWER = %d\n", answer);
     switch (answer)
     {
@@ -252,33 +255,83 @@ int claim_work_client(int sock, char *key, int max_retries){
 Array *get_cache_array_data_protocol(int sock, char *key){
     // send type of mssg
     mssg_type type = GET_ARRAY;
+    printf("[DEBUG] Sending message type: %d\n", type);
     ssize_t n = write_all(sock, &type, sizeof(mssg_type));
     if(n != sizeof(mssg_type)){
+        printf("[ERROR] Failed to send message type\n");
         return NULL;
     }
+    
     // calc estimated size
-    size_t estimated_size = strlen(key) + (size_t)sizeof(size_t);
+    size_t estimated_size = strlen(key);
+    printf("[DEBUG] Key size: %zu, Key: %s\n", estimated_size, key);
+    
     // send the size
-    n =  write_all(sock , &estimated_size, sizeof(size_t));
+    n = write_all(sock, &estimated_size, sizeof(size_t));
     if (n != sizeof(size_t)){
+        printf("[ERROR] Failed to send key size\n");
         return NULL;
     }
+    
+    // send key
+    n = write_all(sock, key, estimated_size);
+    if (n != estimated_size){
+        printf("[ERROR] Failed to send key, sent %zd, expected %zu\n", n, estimated_size);
+        return NULL;
+    }
+    
+    printf("[DEBUG] Waiting for response size...\n");
     size_t response_size = 0;
-    n = read_all(sock , &response_size, sizeof(size_t));
+    n = read_all(sock, &response_size, sizeof(size_t));
+    printf("[DEBUG] Read result: %zd, response_size: %zu\n", n, response_size);
+
     if (n != sizeof(size_t)){
+        printf("[ERROR] Failed to read response size, got %zd bytes\n", n);
         return NULL;
     }
+    
     if (response_size == 0){
-        // cache miss return NULL
+        printf("[x] CACHE MISS DUDE\n");
         return NULL;
     }
+    
+    printf("[DEBUG] Allocating buffer of size: %zu\n", response_size);
     uint8_t *buffer = calloc(1, response_size);
-    n = read_all(sock, buffer, response_size);
-    if (n != response_size){
+    if (!buffer){
+        printf("[ERROR] Failed to allocate buffer\n");
         return NULL;
     }
-    size_t offset = 0;
+    
+    printf("[DEBUG] Reading buffer...\n");
+    n = read_all(sock, buffer, response_size);
+    printf("[DEBUG] Read %zd bytes, expected %zu\n", n, response_size);
+    
+    if (n != response_size){
+        printf("[x] mismatch in size: read %zd, expected %zu\n", n, response_size);
+        free(buffer);
+        return NULL;
+    }
+    
+    printf("[DEBUG] Checking magic number...\n");
+    if (check_magic_number(buffer)){
+        printf("[v] good magic number\n");
+    }else{
+        printf("[x] bad magic number\n");
+        free(buffer);
+        return NULL;
+    }
+    
+    size_t offset = sizeof(uint32_t);
+    printf("[DEBUG] Deserializing array...\n");
     Array *array = deserialize_array_data(buffer, &offset);
+    free(buffer);
+    
+    if (array){
+        printf("[DEBUG] Successfully deserialized array\n");
+    }else{
+        printf("[ERROR] Failed to deserialize array\n");
+    }
+    
     return array;
 }
 /**
@@ -392,20 +445,20 @@ int sendstuff() {
     append_datapoint(arr, data3);
     append_datapoint(arr, data4);
     int stat = claim_work_client(sock, "array1", 10);
-    send_keep_alive(sock);
     if (stat == PENDING){
         sleep(1);
+        send_keep_alive(sock);
         send_array_with_retry(sock, arr, 10);
     }
     if (stat == READY){
         send_keep_alive(sock);
-        Array *arr2 = NULL;
         if (stat == READY){
-            Array *arr2 = NULL;
-            arr2 = get_cache_array_data_protocol(sock, "array1");
+            printf("we got the stuff\n");
+            Array *arr2 = get_cache_array_data_protocol(sock, "array1");
+            printArray(arr2);
         }
-        printf("we got the stuff\n");
-        printArray(arr2);
+        
+        
     }else{
         printf("[LL] promise is not ready to get \n");
     }
