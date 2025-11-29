@@ -38,6 +38,7 @@ int main (char **argc, int argv){
         return -1;
     }
     printf("[+]store allocated\n");
+    // FORK server process 
     pid_t p = fork();
     if (p < 0){
         printf("failed to fork server\n");
@@ -59,7 +60,7 @@ int main (char **argc, int argv){
         exit(0);
     }
 
-    // spawn children 
+    // FORK worker processes
     for (unsigned int i = 0; i < core_count; i++) {
         pid_t p = fork();
         if (p < 0) {
@@ -80,5 +81,6 @@ int main (char **argc, int argv){
         // parent continues to next iteration
         // wait(NULL);
     }
+    // HELTH CHECKS STUFF
     return 1;
 }

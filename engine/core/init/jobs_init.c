@@ -99,7 +99,7 @@ void Init_Server_multithread(PromiseStore *store) {
         if (ser_args->client_fd < 0) { perror("accept"); free(ser_args); continue; }
         // spawn a handler thread
         pthread_t tid;
-        pthread_create(&tid, NULL, handle_client, ser_args);
+        pthread_create(&tid, NULL, handle_client_thread, ser_args);
         //pthread_join(tid, NULL);
         pthread_detach(tid); // don't need to join
     }

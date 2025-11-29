@@ -54,6 +54,7 @@ void *cleaner_thread(void *arg){
                     pthread_mutex_destroy(&promise->lock);
                     pthread_cond_destroy(&promise->ready);
                     // free promise
+                    printf("[XXXXXX] freeing promise %s" ,promise->key);
                     free(promise);
                     // update the pointer to null
                     store->promises[index] = NULL;

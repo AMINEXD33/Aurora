@@ -86,25 +86,30 @@ long int find_empty_slot(PromiseStore *store){
     }
     return -1;
 }
+
+/**
+ * THIS SUCKS , AND IT'S TEMP , we need something that is O(1) best case
+ * and O(log n) worse
+ */
 Promise *get_promise(PromiseStore *store, const char *key){
     for (long int index = 0; index < store->capacity; index++){
-    if (store->promises[index]){
-        if (strcmp(store->promises[index]->key, key) == 0){
-            Promise *promise = store->promises[index];
-            
-            pthread_mutex_lock(&promise->lock);
-            // this cashe is accessed one more time
-            promise->access_count += 1;
-            pthread_mutex_unlock(&promise->lock);
-            // unlock store here sinse we returning
-            pthread_mutex_unlock(&store->lock);
-            //printf("[Thread %lu] Found existing: %s\n", 
-                    //pthread_self(), key);
-            return promise;
+        if (store->promises[index]){
+            if (strcmp(store->promises[index]->key, key) == 0){
+                Promise *promise = store->promises[index];
+                
+                pthread_mutex_lock(&promise->lock);
+                // this cashe is accessed one more time
+                promise->access_count += 1;
+                pthread_mutex_unlock(&promise->lock);
+                // unlock store here sinse we returning
+                pthread_mutex_unlock(&store->lock);
+                //printf("[Thread %lu] Found existing: %s\n", 
+                        //pthread_self(), key);
+                return promise;
+            }
         }
     }
     return NULL;
-}
 }
 /**
  * create a new promise or return an already created one with the same

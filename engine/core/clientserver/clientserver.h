@@ -10,17 +10,9 @@
 #include <poll.h>
 #define SOCKET_PATH "/tmp/aurora.sock"
 #include "../../helpers/helpers.h"
-
-
-
-
-
-
-
-
-
-
-
+#include <signal.h>
+#include <errno.h>
+#include <string.h>
 
 
 typedef enum {
@@ -44,8 +36,9 @@ typedef struct{
 
 ssize_t write_all(int fd, const void *buf, size_t count);
 ssize_t read_all(int fd, void *buf, size_t count);
-void* handle_client(void* arg);
+void* handle_client_thread(void* arg);
 int sendstuff();
 int claim_work_client(int sock, char *key, int max_retries);
 bool check_magic_number(uint8_t *buffer);
+bool check_connection_alive(int sock);
 #endif

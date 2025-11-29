@@ -14,12 +14,12 @@
 #include <sys/time.h>
 #include <math.h>
 #include <stdint.h>
-
+#include "xxhash.h"
 #define DATA_OWNED true 
 #define DATA_NOT_OWNED false 
 
 typedef enum {STRING, BOOLEAN, NONE, INT, FLOAT, DOUBLE, LONG} type;
-
+typedef enum {DATA, ARRAY, NOTHING, PROMISE, NODE} complex_structures;  
 /*data representation*/
 
 typedef struct {
@@ -43,6 +43,7 @@ typedef struct {
     unsigned long int index;
 }Array;
 
+
 typedef enum {READY, COMPUTING, PENDING} status;
 
 /*promis structure*/
@@ -59,6 +60,23 @@ typedef struct{
     unsigned int working_threads;
     unsigned int access_count;
 }Promise;
+
+
+typedef struct Node{
+    XXH64_hash_t hashed_key;
+    complex_structures type; 
+    union
+    {
+        Array *array;
+        Data *data;
+        Promise *promise;
+    }value;
+    struct Node *left;
+    struct Node *right;
+    struct Node *parent;
+    bool is_root;
+} Node;
+
 
 /*promise store*/
 typedef struct{
