@@ -223,12 +223,12 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
  *  `-1`: on error
  */
 int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structures datatype){
-    printf("[SERVER] hadle_sending_datatype called\n");
+    //printf("[SERVER] hadle_sending_datatype called\n");
     
     // get the size of the buffer for the key
     size_t size_of_buff;
     ssize_t n = read_all(client_fd, &size_of_buff, sizeof(size_t));
-    printf("[SERVER] Read key size: %zd (expected %zu)\n", n, sizeof(size_t));
+    //printf("[SERVER] Read key size: %zd (expected %zu)\n", n, sizeof(size_t));
     
     if(n != sizeof(size_t))
     {
@@ -236,12 +236,12 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
         return -1;
     }
     
-    printf("[SERVER] Key size to read: %zu\n", size_of_buff);
+    //printf("[SERVER] Key size to read: %zu\n", size_of_buff);
     
     // read the key (string)
     uint8_t *key = calloc(1, size_of_buff + 1);
     n = read_all(client_fd, key, size_of_buff);
-    printf("[SERVER] Read key: %zd bytes (expected %zu)\n", n, size_of_buff);
+    //printf("[SERVER] Read key: %zd bytes (expected %zu)\n", n, size_of_buff);
     
     if(n != size_of_buff)
     {
@@ -252,7 +252,7 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
     
     // null the last byte
     key[size_of_buff] = '\0';
-    printf("[SERVER] Looking for key: '%s'\n", key);
+    //printf("[SERVER] Looking for key: '%s'\n", key);
     
     // try to find the Promise
     Promise *promise = get_promise(store, key);
@@ -262,13 +262,13 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
         free(key);
         return -1;
     }
-    printf("[SERVER] Found promise with key %s\n", key);
+    //printf("[SERVER] Found promise with key %s\n", key);
     // null checks for datatypes
     switch (datatype)
     {
         case DATA:
             if (!promise->datatype.data){
-                printf("[SERVER] Can't find cache of type DATA (cache miss)\n");
+                //printf("[SERVER] Can't find cache of type DATA (cache miss)\n");
                 size_t size = 0;
                 // send 0 to the client to notify that the promise data is NULL
                 n = send_buffer_with_retry(client_fd, &size, sizeof(size_t), 10);
@@ -278,7 +278,7 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
             break;
         case ARRAY:
             if (!promise->datatype.array){
-                printf("[SERVER] Can't find cache of type ARRAY (cache miss)\n");
+                //printf("[SERVER] Can't find cache of type ARRAY (cache miss)\n");
                 size_t size = 0;
                 // send 0 to the client to notify that the promise array is NULL
                 n = send_buffer_with_retry(client_fd, &size, sizeof(size_t), 10);
@@ -290,10 +290,10 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
     }
     if (promise == NULL || !promise->datatype.array){
         // cache miss send a size 0
-        printf("[SERVER] Cache miss for key '%s'\n", key);
+        //printf("[SERVER] Cache miss for key '%s'\n", key);
         size_t size = 0;
         n = send_buffer_with_retry(client_fd, &size, sizeof(size_t), 10);
-        printf("[SERVER] Sent size 0, result: %zd\n", n);
+        //printf("[SERVER] Sent size 0, result: %zd\n", n);
         if(n == -1){
             free(key);
             return -1;
@@ -303,7 +303,7 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
     }
     // handle when the promise is not ready
     if (promise->status != READY){
-        printf("[SERVER] Promise is still computing (status: %d)\n", promise->status);
+        //printf("[SERVER] Promise is still computing (status: %d)\n", promise->status);
         size_t size = 0;
         n = send_buffer_with_retry(client_fd, &size, sizeof(size_t), 10);
         free(key);
@@ -328,7 +328,7 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
             break;
     }
 
-    printf("[SERVER] Estimated size: %zu\n", estimated_size);
+    //printf("[SERVER] Estimated size: %zu\n", estimated_size);
     
     // serialize data 
     uint8_t *buffer = calloc(1, estimated_size);
@@ -357,9 +357,9 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
     }
 
     // send the expected size to the client
-    printf("[SERVER] Sending size: %zu\n", estimated_size);
+    //printf("[SERVER] Sending size: %zu\n", estimated_size);
     n = send_buffer_with_retry(client_fd, &estimated_size, sizeof(size_t), 10);
-    printf("[SERVER] Send size result: %zd\n", n);
+    //printf("[SERVER] Send size result: %zd\n", n);
     
     if(n == -1){
         printf("[SERVER] Failed to send size\n");
@@ -369,9 +369,9 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
     }
     
     // send the serialized datatype
-    printf("[SERVER] Sending buffer of size: %zu\n", estimated_size);
+    //printf("[SERVER] Sending buffer of size: %zu\n", estimated_size);
     n = send_buffer_with_retry(client_fd, buffer, estimated_size, 10);
-    printf("[SERVER] Send buffer result: %zd\n", n);
+    //printf("[SERVER] Send buffer result: %zd\n", n);
     
     if(n == -1){
         printf("[SERVER] Failed to send buffer\n");
@@ -380,7 +380,7 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
         return -1;
     }
     
-    printf("[SERVER] Successfully sent datatype\n");
+    //printf("[SERVER] Successfully sent datatype\n");
     free(buffer);
     free(key);
     return 0;
@@ -490,7 +490,7 @@ void* handle_client_thread(void* arg){
         {
             // handle a cache request for Data (SET)
             case EXPECT_DATA:
-                printf("\t[EXPECTED DATA] \n");
+                //printf("\t[EXPECTED DATA] \n");
                 Data *dt = handle_data(client_fd, store);
                 if (dt){
                     // cache the data
@@ -500,25 +500,25 @@ void* handle_client_thread(void* arg){
                     printf("[v] data piblished\n");
                 }
                 // handle if this fails  (can't get Data)
-                printf("[SERVER] can't get expected data\n");
+                //printf("[SERVER] can't get expected data\n");
                 break;
             // handle a cache request for Array (SET)
             case EXPECT_ARRAY:
-                printf("\t[EXPECTED ARRAY HIT] \n");
+                //printf("\t[EXPECTED ARRAY HIT] \n");
                 Array *arr = handle_array(client_fd, store);
                 if (arr){
                     // cache the array
-                    printf("adding array into cache\n");
+                   // printf("adding array into cache\n");
                     Promise *promise = get_create_promise(store, arr->key);
                     publishArray(promise, arr);
-                    printf("[v] array is published\n");
+                    //printf("[v] array is published\n");
                 }
                 // handle if this fails (can't get Array)
-                printf("[SERVER] can't get expected array!\n");
+                //printf("[SERVER] can't get expected array!\n");
                 break;
             // handle a work claim for some key
             case EXPECT_CLAIM_WORK:
-                printf("\t[CLAIMING WORK\n");
+                //printf("\t[CLAIMING WORK\n");
                 char *key = handle_claiming_work(client_fd, store);
                 if (key)
                     free(key);

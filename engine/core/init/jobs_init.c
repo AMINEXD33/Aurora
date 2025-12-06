@@ -56,9 +56,6 @@ int INIT_health_cleaner_threads(
     printf("[+]created cleaner threads\n");
     pthread_create(health_thread, NULL, health_rootine, args);
     printf("[+]created health threads\n");
-    sleep(5);
-    args->stop_flag = true;
-    printf("[*]flag is switched to true\n");
     // run threads detached
     pthread_detach(*cleaner_thread);
     pthread_detach(*health_thread);

@@ -320,26 +320,26 @@ int claim_work_client(int sock, char *key, int max_retries){
         return -1;
     }
     status answer;
-    printf("== reading the servers answer\n");
+    //printf("== reading the servers answer\n");
     ssize_t n = read_all(sock, &answer, sizeof(status));
     if (n != sizeof(status)){
         return -1;
     }
-    printf("SERVER ANSWER = %d\n", answer);
+    //printf("SERVER ANSWER = %d\n", answer);
     switch (answer)
     {
         // an other thread is still computing this value
         case COMPUTING:
-            printf("[O] other thread is computing, ill wait\n");
+            //printf("[O] other thread is computing, ill wait\n");
 
             return COMPUTING;
         // this thread claimed the work
         case PENDING:
-            printf("[O] got the work\n");
+            //printf("[O] got the work\n");
             return PENDING;
         // the key is already computed
         case READY:
-            printf("[O] the work is already computed\n");
+            //printf("[O] the work is already computed\n");
             return READY;
     }
     return -1;
@@ -384,7 +384,7 @@ void *get_cache_datatype_protocol(int sock, char *key, complex_structures dataty
     
     // calc estimated size
     size_t estimated_size = strlen(key);
-    printf("[DEBUG] Key size: %zu, Key: %s\n", estimated_size, key);
+    //printf("[DEBUG] Key size: %zu, Key: %s\n", estimated_size, key);
     
     // send the size
     n = write_all(sock, &estimated_size, sizeof(size_t));
@@ -400,10 +400,10 @@ void *get_cache_datatype_protocol(int sock, char *key, complex_structures dataty
         return NULL;
     }
     
-    printf("[DEBUG] Waiting for response size...\n");
+    //printf("[DEBUG] Waiting for response size...\n");
     size_t response_size = 0;
     n = read_all(sock, &response_size, sizeof(size_t));
-    printf("[DEBUG] Read result: %zd, response_size: %zu\n", n, response_size);
+    //printf("[DEBUG] Read result: %zd, response_size: %zu\n", n, response_size);
 
     if (n != sizeof(size_t)){
         printf("[ERROR] Failed to read response size, got %zd bytes\n", n);
@@ -415,16 +415,16 @@ void *get_cache_datatype_protocol(int sock, char *key, complex_structures dataty
         return NULL;
     }
     
-    printf("[DEBUG] Allocating buffer of size: %zu\n", response_size);
+    //printf("[DEBUG] Allocating buffer of size: %zu\n", response_size);
     uint8_t *buffer = calloc(1, response_size);
     if (!buffer){
         printf("[ERROR] Failed to allocate buffer\n");
         return NULL;
     }
     
-    printf("[DEBUG] Reading buffer...\n");
+    //printf("[DEBUG] Reading buffer...\n");
     n = read_all(sock, buffer, response_size);
-    printf("[DEBUG] Read %zd bytes, expected %zu\n", n, response_size);
+    //printf("[DEBUG] Read %zd bytes, expected %zu\n", n, response_size);
     
     if (n != response_size){
         printf("[x] mismatch in size: read %zd, expected %zu\n", n, response_size);
@@ -432,7 +432,7 @@ void *get_cache_datatype_protocol(int sock, char *key, complex_structures dataty
         return NULL;
     }
     
-    printf("[DEBUG] Checking magic number...\n");
+    //printf("[DEBUG] Checking magic number...\n");
     if (check_magic_number(buffer)){
         printf("[v] good magic number\n");
     }else{
@@ -442,7 +442,7 @@ void *get_cache_datatype_protocol(int sock, char *key, complex_structures dataty
     }
     
     size_t offset = sizeof(uint32_t);
-    printf("[DEBUG] Deserializing array...\n");
+    //printf("[DEBUG] Deserializing array...\n");
     switch (datatype)
     {
         case DATA:
@@ -528,7 +528,7 @@ int sendstuff() {
     }
     while (access(SOCKET_PATH, F_OK) != 0) {
         printf("DAMN waiting for server tp start \n");
-        usleep(1000); // wait 1ms
+        usleep(100000); // wait 1ms
     }
     int sock = start_connection(addr);
     if (sock < 0){
@@ -543,9 +543,11 @@ int sendstuff() {
     }
 
     // claim work
-    Data *data = InitDataPoint("aminemeftah");
+    char chars0[10];
+    rand_str(chars0, 9);
+    Data *data = InitDataPoint(chars0);
     WriteDataFloat(data, 12141.151);
-    int stat1 = claim_work_client(sock, "aminemeftah", 10);
+    int stat1 = claim_work_client(sock, chars0, 10);
     if (stat1 == -1){
         printf("ERROR ACURED while claiming work quiting\n");
         close(sock);
@@ -563,7 +565,7 @@ int sendstuff() {
         Data *data_retrieved = (Data *)get_cache_datatype_protocol(sock, "aminemeftah", DATA);
         if (data_retrieved){
             printf("PRINTING DATA RECIEVED\n");
-            printDataPoint(data_retrieved, "\n");
+            // printDataPoint(data_retrieved, "\n");
             FreeDataPoint(data_retrieved);
         }else{
             printf("[XXXXX] READY but nothing is returning(DATA)\n");
@@ -572,16 +574,17 @@ int sendstuff() {
         printf("[LL] promise is not ready to get\n");
     }
 
-
+    char chars[10];
+    rand_str(chars, 9);
     Data *data1 = InitDataPoint("data1");
-     WriteDataFloat(data1, 121441.151);
+    WriteDataFloat(data1, 121441.151);
     Data *data2 = InitDataPoint("data2");
-     WriteDataFloat(data2, 6565.151);
+    WriteDataFloat(data2, 6565.151);
     Data *data3 = InitDataPoint("data3");
-     WriteDataFloat(data3, 68678.151);
+    WriteDataFloat(data3, 68678.151);
     Data *data4 = InitDataPoint("data4");
-     WriteDataFloat(data4, 234645.151);
-    Array *arr = InitDataPointArray("array1");
+    WriteDataFloat(data4, 234645.151);
+    Array *arr = InitDataPointArray(chars);
     append_datapoint(arr, data1);
     append_datapoint(arr, data2);
     append_datapoint(arr, data3);
@@ -589,7 +592,7 @@ int sendstuff() {
     /** WORK FLOW TO CACHE A COMPUTE VALUE */
     // claim the work so no other process recomputes it
     send_keep_alive(sock);
-    int stat2 = claim_work_client(sock, "array1", 10);
+    int stat2 = claim_work_client(sock, chars, 10);
     if (stat2 == -1){
         printf("ERROR ACURED while claiming work quiting\n");
         close(sock);
@@ -611,10 +614,11 @@ int sendstuff() {
         // keep the conn alive
         send_keep_alive(sock);
         // get the cached value
-        Array *arr2 = (Array *)get_cache_datatype_protocol(sock, "array1", ARRAY);
+        Array *arr2 = (Array *)get_cache_datatype_protocol(sock, chars, ARRAY);
         if (arr2){
             printf("PRINTING ARRAY RECIEVED\n");
-            printArray(arr2);
+            printf("key : %s\n", arr2->key);
+            // printArray(arr2);
             free_array(arr2);
         }else{
             printf("[XXXXX] READY but nothing is returning(ARRAY)\n");

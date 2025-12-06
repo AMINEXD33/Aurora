@@ -27,9 +27,9 @@ PromiseStore *InitPromiseStore(
         printf("min threshold can't be sup than max threshold\n");
         return NULL;
     }
-    store->promises = calloc(size, sizeof(Promise*));
-    if (!store->promises){
-        printf("can't allocate memory for promises pointers\n");
+    store->hashmap = InitHashMap(100000);
+    if (!store->hashmap){
+        printf("can't allocate memory for promise hashmap\n");
         free(store);
         return NULL;
     }
@@ -50,66 +50,78 @@ PromiseStore *InitPromiseStore(
 void free_promise_store(PromiseStore *store){
     printf("[*]freeing stuff\n");
     pthread_mutex_lock(&store->lock);
-    for (unsigned long int index = 0; index < store->capacity; index++){
-        Promise *promise = store->promises[index];
-        if (!promise) continue;
-        pthread_mutex_lock(&promise->lock);
-        free(promise->key);
-        FreeDataPoint(promise->datatype.data);
-        free_array(promise->datatype.array);
-        
-        pthread_mutex_unlock(&promise->lock);
-        pthread_mutex_destroy(&promise->lock);
-        pthread_cond_destroy(&promise->ready);
-        free(promise);
-    }
+    free_hashmap_and_data(store->hashmap);
     pthread_mutex_unlock(&store->lock);
     pthread_mutex_destroy(&store->lock);
     pthread_cond_destroy(&store->slot_available);
-    free(store->promises);
     free(store);
-}
-
-/**
- * find an empty slote to append a promise
- * this function is O(n)
- * ### return:
- *  `long int` : if slot found
- *  `-1`: if no slot is found 
- */
-long int find_empty_slot(PromiseStore *store){
-    for (long int index = 0; index < store->capacity; index++){
-        // found an empty slot
-        if (store->promises[index] == NULL){
-            return index;
-        }
-    }
-    return -1;
 }
 
 /**
  * THIS SUCKS , AND IT'S TEMP , we need something that is O(1) best case
  * and O(log n) worse
  */
-Promise *get_promise(PromiseStore *store, const char *key){
-    for (long int index = 0; index < store->capacity; index++){
-        if (store->promises[index]){
-            if (strcmp(store->promises[index]->key, key) == 0){
-                Promise *promise = store->promises[index];
-                
-                pthread_mutex_lock(&promise->lock);
-                // this cashe is accessed one more time
-                promise->access_count += 1;
-                pthread_mutex_unlock(&promise->lock);
-                // unlock store here sinse we returning
-                pthread_mutex_unlock(&store->lock);
-                //printf("[Thread %lu] Found existing: %s\n", 
-                        //pthread_self(), key);
-                return promise;
-            }
-        }
+Promise *get_promise(PromiseStore *store, char *key){
+    Node *node = hash_search(store->hashmap, key);
+    if (!node){
+        printf("[x] can't find promise with key %s\n", key);
+        return NULL;
     }
-    return NULL;
+    if (node->type != PROMISE){
+        printf("[x] cache found but not of type Promise , key: %s\n", key);
+    }
+    Promise *pr = node->value.promise;
+    if (!pr){
+        printf("[x] the node is promise but the promise is NULL\n");
+        return NULL;
+    }
+    return pr;
+}
+/**
+ * Initiate an empty promise
+ * ### args:
+ *  `key`: the key of the promise
+ * ### return
+ *  `NULL`: allocation failed
+ *  `Promise *`: pointer to the promise
+ */
+Promise *InitPromise(char *key){
+    if (!key)
+        return NULL;
+    Promise *promise = malloc(sizeof(Promise));
+    if (!promise){
+        return NULL;
+    }
+    promise->key = strdup(key);
+    if (!promise->key){
+        free(promise);
+        return NULL;
+    }
+    promise->status = PENDING;
+    promise->datatype.array = NULL;
+    promise->datatype.data = NULL;
+    promise->access_count = 100;
+    promise->waiting_threads = 0;
+    promise->working_threads = 0;
+    promise->type = NOTHING;
+    return promise;
+}
+
+void free_promise(Promise *promise){
+    if (!promise)
+        return;
+    
+    switch (promise->type)
+    {
+        case ARRAY:
+            free_array(promise->datatype.array);
+            break;
+        case DATA:
+            FreeDataPoint(promise->datatype.data);
+            break;
+    }
+    free(promise->key);
+    free(promise);
 }
 /**
  * create a new promise or return an already created one with the same
@@ -121,7 +133,7 @@ Promise *get_promise(PromiseStore *store, const char *key){
  *   `Promise *`: when created or found
  *  
  */
-Promise *get_create_promise(PromiseStore *store, const char *key){
+Promise *get_create_promise(PromiseStore *store, char *key){
     if (!store){
         printf("store is not passed\n");
         return NULL;
@@ -134,24 +146,16 @@ Promise *get_create_promise(PromiseStore *store, const char *key){
     // scan or wait for empty memory
     while (1) {
         // Always check for existing promise first
-        for (long int index = 0; index < store->capacity; index++){
-            if (store->promises[index]){
-                if (strcmp(store->promises[index]->key, key) == 0){
-                    Promise *promise = store->promises[index];
-                    
-                    pthread_mutex_lock(&promise->lock);
-                    // this cashe is accessed one more time
-                    promise->access_count += 1;
-                    pthread_mutex_unlock(&promise->lock);
-                    // unlock store here sinse we returning
-                    pthread_mutex_unlock(&store->lock);
-                    //printf("[Thread %lu] Found existing: %s\n", 
-                           //pthread_self(), key);
-                    return promise;
-                }
-            }
+        Node *promise = hash_search(store->hashmap, key);
+        if (promise && promise->type == PROMISE && promise->value.promise){
+            // this cashe is accessed one more time
+            pthread_mutex_lock(&promise->value.promise->lock);
+            promise->value.promise->access_count += 1;
+            pthread_mutex_unlock(&promise->value.promise->lock);
+            // unlock store here sinse we returning
+            pthread_mutex_unlock(&store->lock);
+            return promise->value.promise;
         }
-        
         // Check if store is full
         if (store->count >= store->capacity){
             //printf("[Thread %lu] Waiting for slot (count=%lu)...\n", 
@@ -168,15 +172,7 @@ Promise *get_create_promise(PromiseStore *store, const char *key){
     }
 
     //init the promise
-    Promise *promise = calloc(1, sizeof(Promise));
-    promise->key = calloc(strlen(key) + 1, sizeof(char));
-    strcpy(promise->key, key);
-    promise->status = PENDING;
-    promise->datatype.array = NULL;
-    promise->datatype.data = NULL;
-    promise->access_count = 100;
-    promise->waiting_threads = 0;
-    promise->working_threads = 0;
+    Promise *promise = InitPromise(key);
     // init the lock
     pthread_mutex_init(&promise->lock, NULL);
     // init the signal condition
@@ -184,11 +180,8 @@ Promise *get_create_promise(PromiseStore *store, const char *key){
 
     //printf("create empty promise for key %s\n", promise->key);
     // this could happen , better safe
-    // find a free slot
-    long int free_slot = find_empty_slot(store);
-    //printf("[+] free slot = %ld\n", free_slot);
     // append 
-    store->promises[free_slot] = promise;
+    hash_push_Promise(store->hashmap, promise);
     store->count++;
     pthread_mutex_unlock(&store->lock);
     return promise;
@@ -239,6 +232,7 @@ void publishData(Promise *promise, Data *result){
     promise->datatype.data = result;
     // set as ready
     promise->status = READY;
+    promise->type = DATA;
     pthread_cond_broadcast(&promise->ready);
     pthread_mutex_unlock(&promise->lock);
 }
@@ -261,6 +255,7 @@ void publishArray(Promise *promise, Array *result){
     promise->datatype.array = result;
     // set as ready
     promise->status = READY;
+    promise->type = ARRAY;
     pthread_cond_broadcast(&promise->ready);
     pthread_mutex_unlock(&promise->lock);
 }

@@ -51,6 +51,7 @@ Array *InitDataPointArray(char *key){
     return array;
 }
 
+
 /**
  * write a string into a Data struct
  * ### return:
@@ -81,7 +82,7 @@ int WriteDataInt(Data *data,int value){
         return -1;
     data->value.int_val = value;
     data->type = INT;
-    data->data_owned = DATA_OWNED;
+    data->data_owned = DATA_NOT_OWNED;
     return 1;
 }
 
@@ -96,7 +97,7 @@ int WriteDataLong(Data *data,long value){
         return -1;
     data->value.long_val = value;
     data->type = LONG;
-    data->data_owned = DATA_OWNED;
+    data->data_owned = DATA_NOT_OWNED;
     return 1;
 }
 
@@ -111,7 +112,7 @@ int WriteDataFloat(Data *data,float value){
         return -1;
     data->value.float_val = value;
     data->type = FLOAT;
-    data->data_owned = DATA_OWNED;
+    data->data_owned = DATA_NOT_OWNED;
     return 1;
 }
 
@@ -126,7 +127,7 @@ int WriteDataDouble(Data *data,double value){
         return -1;
     data->value.double_val = value;
     data->type = DOUBLE;
-    data->data_owned = DATA_OWNED;
+    data->data_owned = DATA_NOT_OWNED;
     return 1;
 }
 
@@ -141,7 +142,7 @@ int WriteDataBool(Data *data,bool value){
         return -1;
     data->value.bool_val = value;
     data->type = BOOLEAN;
-    data->data_owned = DATA_OWNED;
+    data->data_owned = DATA_NOT_OWNED;
     return 1;
 }
 

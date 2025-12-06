@@ -116,10 +116,20 @@ void write_to_node(Node *node, XXH64_hash_t key_hash,
     complex_structures type, void *value){
     node->type = type;
     node->hashed_key = key_hash;
-    if (node->type == DATA)
+    switch (type)
+    {
+    case DATA:
         node->value.data = (Data *)value;
-    else if (node->type == ARRAY)
+        break;
+    case ARRAY:
         node->value.array = (Array *)value;
+        break;
+    case PROMISE:
+        node->value.promise = (Promise *)value;
+        break;
+    default:
+        break;
+    }
 }
 
 /**
@@ -437,6 +447,9 @@ Node *get_Node_from_tree(char *key, Node *btree){
  *  `value`: the value that the node will store
  *  `type`: the type of data the node will be holding , look at the complex_structures to see them all
  *  `btree`: the root node of the tree
+ * ### return:
+ *  `0`: success
+ *  `-1`: some error accured
  */
 int push_value_to_tree(char *key ,void *value, complex_structures type, Node *btree){
     if (!btree || !value || !btree->is_root){
@@ -457,12 +470,15 @@ int push_value_to_tree(char *key ,void *value, complex_structures type, Node *bt
             {
             case DATA:
                 write_to_node(curr, key_hash, DATA, value);
+                curr->type = DATA;
                 break;
             case ARRAY:
                 write_to_node(curr, key_hash, ARRAY, value);
+                curr->type = ARRAY;
                 break;
             case PROMISE:
                 write_to_node(curr, key_hash, PROMISE, value);
+                curr->type = PROMISE;
                 break;
             default:
                 printf("[ERROR] the type of the data pushed is not valid\n");
@@ -557,6 +573,9 @@ int push_value_to_tree(char *key ,void *value, complex_structures type, Node *bt
  *  `key`: the key
  *  `data`: pointer to the `Data`
  *  `btree`: the root node of the tree
+ * ### return:
+ *  `0`: success
+ *  `-1`: some error accured
  */
 int push_Data_to_tree(Data *data, Node *btree){
     return push_value_to_tree(data->key, data, DATA, btree);
@@ -569,6 +588,9 @@ int push_Data_to_tree(Data *data, Node *btree){
  *  `key`: the key
  *  `data`: pointer to the `Array`
  *  `btree`: the root node of the tree
+ * ### return:
+ *  `0`: success
+ *  `-1`: some error accured
  */
 int push_Array_to_tree(Array *data, Node *btree){
     return push_value_to_tree(data->key, data, ARRAY, btree);
@@ -581,6 +603,9 @@ int push_Array_to_tree(Array *data, Node *btree){
  *  `key`: the key
  *  `data`: pointer to the `Promise`
  *  `btree`: the root node of the tree
+ * ### return:
+ *  `0`: success
+ *  `-1`: some error accured
  */
 int push_Promise_to_tree(Promise *data, Node *btree){
     return push_value_to_tree(data->key, data, PROMISE, btree);
@@ -636,21 +661,67 @@ void free_tree_bfs(Node *root) {
         } else if (current->type == ARRAY && current->value.array) {
             free_array(current->value.array);
         } else if (current->type == PROMISE && current->value.promise) {
-            if (current->value.promise->datatype.array)
-                free_array(current->value.promise->datatype.array);
-            if (current->value.promise->datatype.data)
-                FreeDataPoint(current->value.promise->datatype.data);
-            free(current->value.promise);
+            free_promise(current->value.promise);
         }
         
         //printf("Freed node with key %llu\n", current->hashed_key);
         free(current);
         totalfreed++;
     }
-    printf("[+]Total free calls are %ld\n", totalfreed);
+    // printf("[+]Total free calls are %ld\n", totalfreed);
     free(queue);
 }
 
+int explore_btree(
+    Hashmap *new_hashmap, 
+    Node *root, 
+    int(do_something)(Hashmap* new_hashmap,  Node *current_node)
+) {
+    if (!root) return -1;
+    
+    // a simple array as queue
+    size_t capacity = 256 * 4;
+    size_t size = 0;
+    size_t front = 0;
+    Node **queue = malloc(capacity * sizeof(Node*));
+    
+    if (!queue) {
+        printf("[ERROR] Can't allocate queue\n");
+        return -1;
+    }
+    
+    queue[size++] = root;
+    
+    while (front < size) {
+        Node *current = queue[front++];
+        
+        // add children to queue before freeing
+        if (current->left) {
+            if (size >= capacity) {
+                capacity *= 2;
+                queue = realloc(queue, capacity * sizeof(Node*));
+            }
+            queue[size++] = current->left;
+        }
+        
+        if (current->right) {
+            if (size >= capacity) {
+                capacity *= 2;
+                queue = realloc(queue, capacity * sizeof(Node*));
+            }
+            queue[size++] = current->right;
+        }
+        
+        // do something with current
+        if (do_something(new_hashmap , current) == -1){
+            free(queue);
+            printf("[x] something wrong in the do something func!\n");
+            return -1;
+        }
+    }
+    free(queue);
+    return 0;
+}
 
 
 
@@ -736,203 +807,203 @@ void rand_str(char *dest, size_t length) {
 
 
 
-#include <time.h>
+// #include <time.h>
 
 
 
-int main() {
-    srand(time(NULL));
+// int main() {
+//     srand(time(NULL));
     
-    const int NUM_NODES = 1000000;
-    printf("[*] Starting stress test with %d nodes...\n", NUM_NODES);
+//     const int NUM_NODES = 1000000;
+//     printf("[*] Starting stress test with %d nodes...\n", NUM_NODES);
     
-    Node *btree = InitBtree();
-    if (!btree) {
-        printf("[X] Failed to init tree\n");
-        return -1;
-    }
+//     Node *btree = InitBtree();
+//     if (!btree) {
+//         printf("[X] Failed to init tree\n");
+//         return -1;
+//     }
     
-    //store keys and data pointers
-    char **keys = malloc(NUM_NODES * sizeof(char*));
-    Data **data_array = malloc(NUM_NODES * sizeof(Data*));
-    if (!keys || !data_array) {
-        printf("[X] Failed to allocate test arrays\n");
-        return -1;
-    }
-    // PHASE 1: INSERT 1M NODES
-    printf("\n[PHASE 1] Inserting %d nodes...\n", NUM_NODES);
-    clock_t start = clock();
+//     //store keys and data pointers
+//     char **keys = malloc(NUM_NODES * sizeof(char*));
+//     Data **data_array = malloc(NUM_NODES * sizeof(Data*));
+//     if (!keys || !data_array) {
+//         printf("[X] Failed to allocate test arrays\n");
+//         return -1;
+//     }
+//     // PHASE 1: INSERT 1M NODES
+//     printf("\n[PHASE 1] Inserting %d nodes...\n", NUM_NODES);
+//     clock_t start = clock();
     
-    for (int i = 0; i < NUM_NODES; i++) {
-        // Generate unique key
-        keys[i] = malloc(128);
-        rand_str(keys[i], 127);
+//     for (int i = 0; i < NUM_NODES; i++) {
+//         // Generate unique key
+//         keys[i] = malloc(128);
+//         rand_str(keys[i], 127);
         
-        // Create data
-        data_array[i] = InitDataPoint(keys[i]);
-        WriteDataInt(data_array[i], i);
+//         // Create data
+//         data_array[i] = InitDataPoint(keys[i]);
+//         WriteDataInt(data_array[i], i);
         
-        // Insert into tree
-        if (push_Data_to_tree(data_array[i], btree) == -1){
-            printf("[ERROR] duplicated key detected\n");
-            exit(-1);
-        }
+//         // Insert into tree
+//         if (push_Data_to_tree(data_array[i], btree) == -1){
+//             printf("[ERROR] duplicated key detected\n");
+//             exit(-1);
+//         }
 
         
-        // if (i % 10000 == 0) {
-        //     printf("  Inserted %d nodes...\n", i);
-        // }
-    }
+//         // if (i % 10000 == 0) {
+//         //     printf("  Inserted %d nodes...\n", i);
+//         // }
+//     }
     
-    clock_t end = clock();
-    double insert_time = ((double)(end - start)) / CLOCKS_PER_SEC;
-    printf("[✓] Inserted %d nodes in %.3f seconds (%.0f nodes/sec)\n", 
-           NUM_NODES, insert_time, NUM_NODES / insert_time);
+//     clock_t end = clock();
+//     double insert_time = ((double)(end - start)) / CLOCKS_PER_SEC;
+//     printf("[✓] Inserted %d nodes in %.3f seconds (%.0f nodes/sec)\n", 
+//            NUM_NODES, insert_time, NUM_NODES / insert_time);
     
-    // ========== PHASE 2: SEARCH ALL NODES ==========
-    printf("\n[PHASE 2] Searching for all %d nodes...\n", NUM_NODES);
-    start = clock();
+//     // ========== PHASE 2: SEARCH ALL NODES ==========
+//     printf("\n[PHASE 2] Searching for all %d nodes...\n", NUM_NODES);
+//     start = clock();
     
-    int found_count = 0;
-    int not_found = 0;
+//     int found_count = 0;
+//     int not_found = 0;
     
-    for (int i = 0; i < NUM_NODES; i++) {
-        Node *found = get_Node_from_tree(keys[i], btree);
-        if (found) {
-            found_count++;
-            // Verify data integrity
-            if (found->value.data && 
-                *ReadDataInt(found->value.data) != i) {
-                printf("[X] Data mismatch at index %d!\n", i);
-            }
-        } else {
-            not_found++;
-            printf("[X] Could not find key: %s\n", keys[i]);
-        }
-    }
-    end = clock();
-    double search_time = ((double)(end - start)) / CLOCKS_PER_SEC;
-    printf("[✓] Found %d/%d nodes in %.3f seconds (%.0f searches/sec)\n", 
-           found_count, NUM_NODES, search_time, NUM_NODES / search_time);
-    if (not_found > 0) {
-        printf("[X] WARNING: %d nodes not found!\n", not_found);
-    }
+//     for (int i = 0; i < NUM_NODES; i++) {
+//         Node *found = get_Node_from_tree(keys[i], btree);
+//         if (found) {
+//             found_count++;
+//             // Verify data integrity
+//             if (found->value.data && 
+//                 *ReadDataInt(found->value.data) != i) {
+//                 printf("[X] Data mismatch at index %d!\n", i);
+//             }
+//         } else {
+//             not_found++;
+//             printf("[X] Could not find key: %s\n", keys[i]);
+//         }
+//     }
+//     end = clock();
+//     double search_time = ((double)(end - start)) / CLOCKS_PER_SEC;
+//     printf("[✓] Found %d/%d nodes in %.3f seconds (%.0f searches/sec)\n", 
+//            found_count, NUM_NODES, search_time, NUM_NODES / search_time);
+//     if (not_found > 0) {
+//         printf("[X] WARNING: %d nodes not found!\n", not_found);
+//     }
 
-    //PHASE 3: DELETE RANDOM NODES
-    printf("\n[PHASE 3] Deleting random 50%% of nodes...\n");
-    start = clock();
+//     //PHASE 3: DELETE RANDOM NODES
+//     printf("\n[PHASE 3] Deleting random 50%% of nodes...\n");
+//     start = clock();
     
-    int delete_count = NUM_NODES / 2;
-    int deleted = 0;
-    Node *root = btree;
+//     int delete_count = NUM_NODES / 2;
+//     int deleted = 0;
+//     Node *root = btree;
 
-    // Track which indices were deleted
-    bool *was_deleted = calloc(NUM_NODES, sizeof(bool));
-    if (!was_deleted) {
-        printf("[X] Failed to allocate deletion tracker\n");
-        return -1;
-    }
+//     // Track which indices were deleted
+//     bool *was_deleted = calloc(NUM_NODES, sizeof(bool));
+//     if (!was_deleted) {
+//         printf("[X] Failed to allocate deletion tracker\n");
+//         return -1;
+//     }
     
-    // Shuffle indices for random deletion
-    int *indices = malloc(NUM_NODES * sizeof(int));
-    for (int i = 0; i < NUM_NODES; i++) {
-        indices[i] = i;
-    }
+//     // Shuffle indices for random deletion
+//     int *indices = malloc(NUM_NODES * sizeof(int));
+//     for (int i = 0; i < NUM_NODES; i++) {
+//         indices[i] = i;
+//     }
     
-    //Fisher-Yates shuffle
-    for (int i = NUM_NODES - 1; i > 0; i--) {
-        int j = rand() % (i + 1);
-        int temp = indices[i];
-        indices[i] = indices[j];
-        indices[j] = temp;
-    }
+//     //Fisher-Yates shuffle
+//     for (int i = NUM_NODES - 1; i > 0; i--) {
+//         int j = rand() % (i + 1);
+//         int temp = indices[i];
+//         indices[i] = indices[j];
+//         indices[j] = temp;
+//     }
     
-    // Delete first half of shuffled indices
-    for (int i = 0; i < delete_count; i++) {
-        int idx = indices[i];
-        Node *to_delete = get_value_from_tree(keys[idx], root, NODE);
+//     // Delete first half of shuffled indices
+//     for (int i = 0; i < delete_count; i++) {
+//         int idx = indices[i];
+//         Node *to_delete = get_value_from_tree(keys[idx], root, NODE);
         
-        if (to_delete) {
-            root = free_node(root, to_delete);
-            was_deleted[idx] = true;
-            deleted++;
-        }
-    }
-    end = clock();
-    double delete_time = ((double)(end - start)) / CLOCKS_PER_SEC;
-    printf("[✓] Deleted %d nodes in %.3f seconds (%.0f deletions/sec)\n", 
-           deleted, delete_time, deleted / delete_time);
+//         if (to_delete) {
+//             root = free_node(root, to_delete);
+//             was_deleted[idx] = true;
+//             deleted++;
+//         }
+//     }
+//     end = clock();
+//     double delete_time = ((double)(end - start)) / CLOCKS_PER_SEC;
+//     printf("[✓] Deleted %d nodes in %.3f seconds (%.0f deletions/sec)\n", 
+//            deleted, delete_time, deleted / delete_time);
     
     
-    //PHASE 4: VERIFY REMAINING NODES
-    printf("\n[PHASE 4] Verifying remaining nodes...\n");
-    start = clock();
+//     //PHASE 4: VERIFY REMAINING NODES
+//     printf("\n[PHASE 4] Verifying remaining nodes...\n");
+//     start = clock();
     
-    int should_exist = 0;
-    int should_not_exist = 0;
-    int correct = 0;
-    int incorrect = 0;
+//     int should_exist = 0;
+//     int should_not_exist = 0;
+//     int correct = 0;
+//     int incorrect = 0;
     
-    for (int i = 0; i < NUM_NODES; i++) {
-        Node *found = get_value_from_tree(keys[i], root, NODE);
+//     for (int i = 0; i < NUM_NODES; i++) {
+//         Node *found = get_value_from_tree(keys[i], root, NODE);
         
-        if (was_deleted[i]) {
-            should_not_exist++;
-            if (!found) {
-                correct++;
-            } else {
-                incorrect++;
-            }
-        } else {
-            should_exist++;
-            if (found) {
-                correct++;
-            } else {
-                incorrect++;
-            }
-        }
-    }
-    end = clock();
-    double verify_time = ((double)(end - start)) / CLOCKS_PER_SEC;
-    printf("[✓] Verification: %d correct, %d incorrect (%.3f sec)\n", 
-           correct, incorrect, verify_time);
-    printf("    Should exist: %d | Should not exist: %d\n", 
-           should_exist, should_not_exist);
+//         if (was_deleted[i]) {
+//             should_not_exist++;
+//             if (!found) {
+//                 correct++;
+//             } else {
+//                 incorrect++;
+//             }
+//         } else {
+//             should_exist++;
+//             if (found) {
+//                 correct++;
+//             } else {
+//                 incorrect++;
+//             }
+//         }
+//     }
+//     end = clock();
+//     double verify_time = ((double)(end - start)) / CLOCKS_PER_SEC;
+//     printf("[✓] Verification: %d correct, %d incorrect (%.3f sec)\n", 
+//            correct, incorrect, verify_time);
+//     printf("    Should exist: %d | Should not exist: %d\n", 
+//            should_exist, should_not_exist);
     
-    //PHASE 5: CLEANUP
-    printf("\n[PHASE 5] Cleaning up remaining tree...\n");
-    start = clock();
+//     //PHASE 5: CLEANUP
+//     printf("\n[PHASE 5] Cleaning up remaining tree...\n");
+//     start = clock();
     
-    free_tree_bfs(root);
+//     free_tree_bfs(root);
     
-    end = clock();
-    double cleanup_time = ((double)(end - start)) / CLOCKS_PER_SEC;
-    printf("[✓] Tree cleanup completed in %.3f seconds\n", cleanup_time);
-    // Free test arrays
-    for (int i = 0; i < NUM_NODES; i++) {
-        free(keys[i]);
-    }
-    free(keys);
-    free(data_array);
-    free(indices);
-    free(was_deleted); 
+//     end = clock();
+//     double cleanup_time = ((double)(end - start)) / CLOCKS_PER_SEC;
+//     printf("[✓] Tree cleanup completed in %.3f seconds\n", cleanup_time);
+//     // Free test arrays
+//     for (int i = 0; i < NUM_NODES; i++) {
+//         free(keys[i]);
+//     }
+//     free(keys);
+//     free(data_array);
+//     free(indices);
+//     free(was_deleted); 
     
-    //SUMMARY
-    printf("\n========== STRESS TEST SUMMARY ==========\n");
-    printf("Total nodes tested: %d\n", NUM_NODES);
-    printf("Insert time: %.3f sec (%.0f nodes/sec)\n", insert_time, NUM_NODES/insert_time);
-    printf("Search time: %.3f sec (%.0f searches/sec)\n", search_time, NUM_NODES/search_time);
-    printf("Delete time: %.3f sec (%.0f deletions/sec)\n", delete_time, deleted/delete_time);
-    printf("Verify time: %.3f sec\n", verify_time);
-    printf("Cleanup time: %.3f sec\n", cleanup_time);
-    printf("Total time: %.3f sec\n", 
-           insert_time + search_time + delete_time + verify_time + cleanup_time);
+//     //SUMMARY
+//     printf("\n========== STRESS TEST SUMMARY ==========\n");
+//     printf("Total nodes tested: %d\n", NUM_NODES);
+//     printf("Insert time: %.3f sec (%.0f nodes/sec)\n", insert_time, NUM_NODES/insert_time);
+//     printf("Search time: %.3f sec (%.0f searches/sec)\n", search_time, NUM_NODES/search_time);
+//     printf("Delete time: %.3f sec (%.0f deletions/sec)\n", delete_time, deleted/delete_time);
+//     printf("Verify time: %.3f sec\n", verify_time);
+//     printf("Cleanup time: %.3f sec\n", cleanup_time);
+//     printf("Total time: %.3f sec\n", 
+//            insert_time + search_time + delete_time + verify_time + cleanup_time);
     
-    if (incorrect == 0 && should_not_exist == NUM_NODES/2 && should_exist == NUM_NODES/2) {
-        printf("\n[✓✓✓] ALL TESTS PASSED! Tree is solid! [✓✓✓]\n");
-    } else {
-        printf("\n[XXX] TESTS FAILED: %d errors detected [XXX]\n", incorrect);
-    }
+//     if (incorrect == 0 && should_not_exist == NUM_NODES/2 && should_exist == NUM_NODES/2) {
+//         printf("\n[✓✓✓] ALL TESTS PASSED! Tree is solid! [✓✓✓]\n");
+//     } else {
+//         printf("\n[XXX] TESTS FAILED: %d errors detected [XXX]\n", incorrect);
+//     }
     
-    return 0;
-}
+//     return 0;
+// }
