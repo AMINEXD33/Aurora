@@ -330,6 +330,7 @@ void done_with_promise_data(Promise *promise){
 double update_store_threshold(PromiseStore *store){
     // calc accupancy 
     double occupancy = ((double)store->count / (double)store->capacity) * 100;
+    printf("\t[x] occupancy = %lf\n", occupancy);
 
     // update ema
     store->ema_occupancy =store->smoothing * occupancy + (1 - store->smoothing) * store->prev_ema;

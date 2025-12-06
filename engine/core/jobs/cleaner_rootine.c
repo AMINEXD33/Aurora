@@ -87,7 +87,12 @@ int free_target_node_from_hmap(
             store->count--;
             // broadcast that we cleaned it , for any thread waiting for a free slot
             pthread_cond_broadcast(&store->slot_available);
+        }else{
+            printf("\t[x] threads still working with this\n");
+            printf("waiting = %d , working = %d\n", current->value.promise->waiting_threads, current->value.promise->working_threads);
         }
+    }else{
+        printf("\t[x] promise didn't catche threshold %lf  , promise access count = %ld \n", threshold, current->value.promise->access_count);
     }
     return 0;
 }
@@ -111,6 +116,7 @@ void *cleaner_thread(void *arg){
         // don't start cleaning when the occuancy is bellow 50%
         if (occupancy < 50){
             sleep(1);
+            continue;
         }
         // lock the store
         pthread_mutex_lock(&store->lock);
@@ -128,6 +134,6 @@ void *cleaner_thread(void *arg){
         // unlock the store
         pthread_mutex_unlock(&store->lock);
         printf("[+] cleaning round\n");
-        sleep(5);
+        sleep(0.3);
     }
 }

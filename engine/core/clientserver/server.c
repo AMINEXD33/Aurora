@@ -186,6 +186,7 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
         if (send_buffer_with_retry(client_fd, &resp, sizeof(status), 10) == -1){
             printf("can't send pending response to the client\n");
             free(key);
+            free_promise(promise);
             return (char *)key;
         }
         printf("sent , PENDING\n");

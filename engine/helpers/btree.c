@@ -330,6 +330,8 @@ Node *free_node(Node*root,  Node *target_node){
             return root;
     }
 }
+
+
 /**
  * search for some node in the tree and return a pointer to the value of
  * the node or the node it self , depending on the type provided
@@ -343,10 +345,9 @@ Node *free_node(Node*root,  Node *target_node){
  */
 void *get_value_from_tree(char *key, Node *btree, complex_structures type){
     Node *curr = btree;
-    int how_many_recurse = 0;
     XXH64_hash_t key_hash = XXH64(key, strlen(key), 0);
+
     while (curr != NULL){
-        //printf("[NN] recurse %d\n", how_many_recurse);
         if (curr->is_root && curr->type == NOTHING){
             return NULL;
         }
@@ -368,19 +369,16 @@ void *get_value_from_tree(char *key, Node *btree, complex_structures type){
         // left or right are not empty recurse and go to the next node
         if (go_right && curr->right){
             //printf("[v] recursing right\n");
-            how_many_recurse++;
             curr = curr->right;
         }
         else if (go_left && curr->left){
             //printf("[v] recursing left\n");
-            how_many_recurse++;
             curr = curr->left;
         }
         else{
             return NULL;
         }
     }
-    //printf("[V] done!\n");
     return NULL;
 }
 /**

@@ -318,8 +318,8 @@ Hashmap *resize_hashmap(Hashmap *old_hashmap){
 
 // int main (){
 //     srand(time(NULL));
-//     const int NUM_NODES = 10000;
-//     Hashmap *hashmap = InitHashMap(100000);
+//     const int NUM_NODES = 1000000;
+//     Hashmap *hashmap = InitHashMap(2000000);
 //     printf("[*] Starting stress test with %d nodes...\n", NUM_NODES * 3);
 
 //     // store keys and data stuff
@@ -428,7 +428,7 @@ Hashmap *resize_hashmap(Hashmap *old_hashmap){
 //     end = clock();
 //     double search_time = ((double)(end - start)) / CLOCKS_PER_SEC;
 //     printf("[✓] Found %d/%d nodes in %.3f seconds (%.0f searches/sec)\n", 
-//            found_count, NUM_NODES * 3, search_time, NUM_NODES * 3 / search_time);
+//            found_count, NUM_NODES * 3, search_time, (NUM_NODES * 3) / search_time);
 //     if (not_found > 0) {
 //         printf("[X] WARNING: %d nodes not found!\n", not_found);
 //     }
@@ -442,22 +442,21 @@ Hashmap *resize_hashmap(Hashmap *old_hashmap){
 //     free(array_keys);
 //     free(promise_keys);
 //     start = 0.0;
-//     Hashmap *new_hashmap = resize_hashmap(hashmap);
-//     Hashmap *new_hashmap2 = resize_hashmap(new_hashmap);
-//     Hashmap *new_hashmap3 = resize_hashmap(new_hashmap2);
-//     Hashmap *new_hashmap4 = resize_hashmap(new_hashmap3);
-//     end = clock();
-//     if (!new_hashmap)
-//         printf("[x] nooop\n");
-//     double resize_time = ((double)(end - start)) / CLOCKS_PER_SEC;
-//     printf("[✓] resize time %.3f\n", resize_time);
-//     printf("[v]new size = %d\n", new_hashmap->size);
-//     printf("[v] inserts performed new hashmap %ld\n", new_hashmap->inserts);
-//     free_hashmap_and_data(hashmap);
-//     free_hashmap_and_data(new_hashmap);
-//     free_hashmap_and_data(new_hashmap2);
-//     free_hashmap_and_data(new_hashmap3);
-//     free_hashmap_and_data(new_hashmap4);
+//     // Hashmap *new_hashmap = resize_hashmap(hashmap);
+//     // Hashmap *new_hashmap2 = resize_hashmap(new_hashmap);
+//     // Hashmap *new_hashmap3 = resize_hashmap(new_hashmap2);
+//     // Hashmap *new_hashmap4 = resize_hashmap(new_hashmap3);
+//     // end = clock();
+//     // if (!new_hashmap)
+//     //     printf("[x] nooop\n");
+//     // double resize_time = ((double)(end - start)) / CLOCKS_PER_SEC;
+//     // printf("[✓] resize time %.3f\n", resize_time);
+//     // printf("[v]new size = %d\n", new_hashmap->size);
+//     // printf("[v] inserts performed new hashmap %ld\n", new_hashmap->inserts);
+//     // free_hashmap_and_data(hashmap);
+//     // free_hashmap_and_data(new_hashmap);
+//     // free_hashmap_and_data(new_hashmap2);
+//     // free_hashmap_and_data(new_hashmap3);
+//     // free_hashmap_and_data(new_hashmap4);
 //    return -1;
-    
 // }

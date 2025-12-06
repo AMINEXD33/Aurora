@@ -7,10 +7,14 @@
                 "/lib",
                 "/lib64",
                 "/usr/lib",
-                "/usr/lib64"
+                "/usr/lib64",
+                "/usr",
+                "/usr/include/",
+                "/home/theghost/vcpkg/installed/x64-linux/include/",
+                "/home/theghost/Desktop/Aurora"
             ],
             "defines": [],
-            "compilerPath": "/usr/bin/clang-19",
+            "compilerPath": "/usr/bin/gcc",
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "macos-gcc-x64"

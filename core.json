@@ -1,7 +1,7 @@
 {
     "cores": 4,
     "threads": 10,
-    "shared_memory_units": 1200,
+    "shared_memory_units": 20,
     "threshold": 10.00,
     "min_threshold": 1.00,
     "max_threshold": 100.00
