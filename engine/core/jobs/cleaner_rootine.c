@@ -88,13 +88,17 @@ int free_target_node_from_hmap(
             
             printf("\t[XXXXXXXXXXXXXXXXXXX] freeing promise %s\n" ,current->value.promise->key);
             unsigned long bucket = current->hashed_key % store->hashmap->size;
-            pthread_mutex_unlock(&current->value.promise->lock);
+            // pthread_mutex_unlock(&current->value.promise->lock);
             // free promise
             store->hashmap->node[bucket] = free_node(root, current);
             // update the count
             store->count--;
             // broadcast that we cleaned it , for any thread waiting for a free slot
             pthread_cond_broadcast(&store->slot_available);
+        }else{
+            printf("\t\t[can't] can't free this fucker\n");
+            printf("\t\t waiting = %d\n", current->value.promise->waiting_threads);
+            printf("\t\t working = %d\n", current->value.promise->working_threads);
         }
     }
     return 0;
@@ -117,14 +121,15 @@ void *cleaner_thread(void *arg){
         }
         double occupancy = ((double)store->count / (double)store->capacity) * 100;
         // don't start cleaning when the occuancy is bellow 50%
+        // get the new threshold
+        double threshold = update_store_threshold(store);
         if (occupancy < 50){
             sleep(3);
             continue;
         }
         // lock the store
         pthread_mutex_lock(&store->lock);
-        // get the new threshold
-        double threshold = update_store_threshold(store);
+        printf("\t\t[threshold] %lf\n", threshold);
         // for every promise
         for (unsigned long int index = 0; index < store->hashmap->size; index ++){
             if (!store->hashmap->node[index]) continue;

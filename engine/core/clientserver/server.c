@@ -185,7 +185,6 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
         status resp = PENDING;
         if (send_buffer_with_retry(client_fd, &resp, sizeof(status), 10) == -1){
             printf("can't send pending response to the client\n");
-            free(key);
             free_promise(promise);
             return (char *)key;
         }
@@ -197,7 +196,6 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
         status resp = COMPUTING;
         if (send_buffer_with_retry(client_fd, &resp, sizeof(status), 10) == -1){
             printf("can't send computing response to the client\n");
-            free(key);
             return (char *)key;
         }
         printf("sent , COMPUTING\n");
@@ -205,7 +203,6 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
         status resp = READY;
         if (send_buffer_with_retry(client_fd, &resp, sizeof(status), 10) == -1){
             printf("can't send ready response to the client\n");
-            free(key);
             return (char *)key;
         }
         printf("sent , READY\n");
@@ -501,6 +498,7 @@ void* handle_client_thread(void* arg){
                     printf("adding data into cache\n");
                     Promise *promise = get_create_promise(store, dt->key);
                     publishData(promise, dt);
+                    done_with_promise_data(promise);
                     printf("[v] data piblished\n");
                 }
                 // handle if this fails  (can't get Data)
@@ -525,8 +523,8 @@ void* handle_client_thread(void* arg){
             case EXPECT_CLAIM_WORK:
                 //printf("\t[CLAIMING WORK\n");
                 char *key = handle_claiming_work(client_fd, store);
-                if (key)
-                    free(key);
+                // if (key)
+                //     free(key);
                 break;
             // handle getting a promise of type Array
             case GET_ARRAY: 

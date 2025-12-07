@@ -73,7 +73,7 @@ int main (char **argc, int argv){
             // SEND some stuff every 10 seconds
             while (true){
                 sendstuff();
-                sleep(1);
+                sleep(0.5);
             }
             exit(0); // IMPORTANT: prevent it from re-running the loop
         }

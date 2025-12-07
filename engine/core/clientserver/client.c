@@ -530,9 +530,14 @@ int sendstuff() {
     if (!addr){
         return -1;
     }
+    int max_conn_retries = 0;
     while (access(SOCKET_PATH, F_OK) != 0) {
         printf("DAMN waiting for server tp start \n");
         usleep(100000); // wait 1ms
+        if (max_conn_retries >= 10){
+            return -1;
+        }
+        max_conn_retries++;
     }
     int sock = start_connection(addr);
     if (sock < 0){
@@ -570,7 +575,6 @@ int sendstuff() {
         if (data_retrieved){
             printf("PRINTING DATA RECIEVED\n");
             // printDataPoint(data_retrieved, "\n");
-            FreeDataPoint(data_retrieved);
         }else{
             printf("[XXXXX] READY but nothing is returning(DATA)\n");
         }
@@ -578,59 +582,59 @@ int sendstuff() {
         printf("[LL] promise is not ready to get\n");
     }
 
-    char chars[10];
-    rand_str(chars, 9);
-    Data *data1 = InitDataPoint("data1");
-    WriteDataFloat(data1, 121441.151);
-    Data *data2 = InitDataPoint("data2");
-    WriteDataFloat(data2, 6565.151);
-    Data *data3 = InitDataPoint("data3");
-    WriteDataFloat(data3, 68678.151);
-    Data *data4 = InitDataPoint("data4");
-    WriteDataFloat(data4, 234645.151);
-    Array *arr = InitDataPointArray(chars);
-    append_datapoint(arr, data1);
-    append_datapoint(arr, data2);
-    append_datapoint(arr, data3);
-    append_datapoint(arr, data4);
-    /** WORK FLOW TO CACHE A COMPUTE VALUE */
-    // claim the work so no other process recomputes it
-    send_keep_alive(sock);
-    int stat2 = claim_work_client(sock, chars, 10);
-    if (stat2 == -1){
-        printf("ERROR ACURED while claiming work quiting\n");
-        close(sock);
-        return -1;
-    }
-    // if the status is PENDING that means that the promise is created
-    if (stat2 == PENDING){
-        // keep the conn alive for our next request
-        sleep(2);
-        send_keep_alive(sock);
-        // send the array (the same key)
-        send_array_with_retry(sock, arr, 10);
-        close(sock);
-        return -1;
-    }
-    // the compute for the key is already done so you can retrieve 
-    // the value
-    else if (stat2 == READY){
-        // keep the conn alive
-        send_keep_alive(sock);
-        // get the cached value
-        Array *arr2 = (Array *)get_cache_datatype_protocol(sock, chars, ARRAY);
-        if (arr2){
-            printf("PRINTING ARRAY RECIEVED\n");
-            printf("key : %s\n", arr2->key);
-            // printArray(arr2);
-            free_array(arr2);
-        }else{
-            printf("[XXXXX] READY but nothing is returning(ARRAY)\n");
-        }
-    }else{
-        // the promise is still computing , you can do something else
-        printf("[LL] promise is not ready to get \n");
-    }
+
+    // char chars[10];
+    // rand_str(chars, 9);
+    // Data *data1 = InitDataPoint("data1");
+    // WriteDataFloat(data1, 121441.151);
+    // Data *data2 = InitDataPoint("data2");
+    // WriteDataFloat(data2, 6565.151);
+    // Data *data3 = InitDataPoint("data3");
+    // WriteDataFloat(data3, 68678.151);
+    // Data *data4 = InitDataPoint("data4");
+    // WriteDataFloat(data4, 234645.151);
+    // Array *arr = InitDataPointArray(chars);
+    // append_datapoint(arr, data1);
+    // append_datapoint(arr, data2);
+    // append_datapoint(arr, data3);
+    // append_datapoint(arr, data4);
+    // /** WORK FLOW TO CACHE A COMPUTE VALUE */
+    // // claim the work so no other process recomputes it
+    // send_keep_alive(sock);
+    // int stat2 = claim_work_client(sock, chars, 10);
+    // if (stat2 == -1){
+    //     printf("ERROR ACURED while claiming work quiting\n");
+    //     close(sock);
+    //     return -1;
+    // }
+    // // if the status is PENDING that means that the promise is created
+    // if (stat2 == PENDING){
+    //     // keep the conn alive for our next request
+    //     sleep(2);
+    //     send_keep_alive(sock);
+    //     // send the array (the same key)
+    //     send_array_with_retry(sock, arr, 10);
+    //     close(sock);
+    //     return -1;
+    // }
+    // // the compute for the key is already done so you can retrieve 
+    // // the value
+    // else if (stat2 == READY){
+    //     // keep the conn alive
+    //     send_keep_alive(sock);
+    //     // get the cached value
+    //     Array *arr2 = (Array *)get_cache_datatype_protocol(sock, chars, ARRAY);
+    //     if (arr2){
+    //         printf("PRINTING ARRAY RECIEVED\n");
+    //         printf("key : %s\n", arr2->key);
+    //         // printArray(arr2);
+    //     }else{
+    //         printf("[XXXXX] READY but nothing is returning(ARRAY)\n");
+    //     }
+    // }else{
+    //     // the promise is still computing , you can do something else
+    //     printf("[LL] promise is not ready to get \n");
+    // }
 
     // if (stat1 == READY){
     //     send_keep_alive(sock);
@@ -649,8 +653,6 @@ int sendstuff() {
     send_die(sock);
     // send side cases
     free(addr);
-    free_array(arr);
-    FreeDataPoint(data);
     close(sock);
 
     return 0;

@@ -14,11 +14,10 @@ Data *InitDataPoint(char *key){
     }
     data->type = NONE;
     data->data_owned = DATA_NOT_OWNED;
-    
     if (key){
-        char *cpy_key = calloc(1, strlen(key)+1);
-        strcpy(cpy_key, key);
-        data->key = cpy_key;
+        data->key = strdup(key);
+    }else{
+        data->key = NULL;
     }
     return data;
 }
@@ -44,9 +43,9 @@ Array *InitDataPointArray(char *key){
     array->index = 0;
     array->size = 10;
     if (key){
-        char *cpy_key = calloc(1, strlen(key)+1);
-        strcpy(cpy_key, key);
-        array->key = cpy_key;
+        array->key = strdup(key);
+    }else{
+        array->key = NULL;
     }
     return array;
 }

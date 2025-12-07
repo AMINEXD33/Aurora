@@ -141,15 +141,69 @@ void free_node_resources(Node *target_node){
     if (!target_node){
         return;
     }
+    switch (target_node->type)
+    {
+        case DATA:
+            printf("\t\t target node is DATA\n", target_node->type);
+            if (target_node->value.data)
+                printf("\t\t target node has a value\n");
+            else
+                printf("\t\t should be null\n");
+            break;
+        case ARRAY:
+            printf("\t\t target node is ARRAY\n", target_node->type);
+            if (target_node->value.array)
+                printf("\t\t target node has a value\n");
+            else
+                printf("\t\t should be null\n");
+            break;
+        case PROMISE:
+            printf("\t\t target node is PROMISE\n", target_node->type);
+            if (target_node->value.promise)
+                printf("\t\t target node has a value\n");
+            else
+                printf("\t\t should be null\n");
+            break;
+    default:
+        break;
+    }
+    switch (target_node->value.promise->type)
+    {
+        case DATA:
+            printf("\t\t promise node is DATA\n", target_node->type);
+            if (target_node->value.data)
+                printf("\t\t promise node has a value\n");
+            else
+                printf("\t\t should be null\n");
+            break;
+        case ARRAY:
+            printf("\t\t promise node is ARRAY\n", target_node->type);
+            if (target_node->value.array)
+                printf("\t\t promise node has a value\n");
+            else
+                printf("\t\t should be null\n");
+            break;
+        case PROMISE:
+            printf("\t\t promise node is PROMISE\n", target_node->type);
+            if (target_node->value.promise)
+                printf("\t\t promise node has a value\n");
+            else
+                printf("\t\t should be null\n");
+            break;
+    default:
+        break;
+    }
     // Free the data
     if (target_node->type == DATA && target_node->value.data) {
         FreeDataPoint(target_node->value.data);
-    } else if (target_node->type == ARRAY && target_node->value.array) {
+    } 
+    else if (target_node->type == ARRAY && target_node->value.array) {
         free_array(target_node->value.array);
-    } else if (target_node->type == PROMISE && target_node->value.promise) {
-        if (target_node->value.promise->datatype.array)
+    } 
+    else if (target_node->type == PROMISE && target_node->value.promise) {
+        if (target_node->value.promise->type == ARRAY && target_node->value.promise->datatype.array)
             free_array(target_node->value.promise->datatype.array);
-        if (target_node->value.promise->datatype.data)
+        if (target_node->value.promise->type == DATA && target_node->value.promise->datatype.data)
             FreeDataPoint(target_node->value.promise->datatype.data);
         free(target_node->value.promise);
     }
