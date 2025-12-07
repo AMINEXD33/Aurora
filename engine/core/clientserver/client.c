@@ -314,15 +314,18 @@ int send_array_with_retry(int sock, Array *arr, int max_retries) {
  */
 int claim_work_client(int sock, char *key, int max_retries){
     if (!check_connection_alive(sock)){
+        printf("[x] connection is down\n");
         return -1;
     }
     if (send_key_with_retry(sock, key, max_retries) == -1){
+        printf("[x] can't send keys\n");
         return -1;
     }
     status answer;
     //printf("== reading the servers answer\n");
     ssize_t n = read_all(sock, &answer, sizeof(status));
     if (n != sizeof(status)){
+        printf("[x] can't rescieve all size\n");
         return -1;
     }
     //printf("SERVER ANSWER = %d\n", answer);
@@ -342,6 +345,7 @@ int claim_work_client(int sock, char *key, int max_retries){
             //printf("[O] the work is already computed\n");
             return READY;
     }
+    printf("[x] the answer is f something unexpected\n");
     return -1;
 }
 
@@ -562,7 +566,7 @@ int sendstuff() {
     }
     else if(stat1 == READY){
         send_keep_alive(sock);
-        Data *data_retrieved = (Data *)get_cache_datatype_protocol(sock, "aminemeftah", DATA);
+        Data *data_retrieved = (Data *)get_cache_datatype_protocol(sock, chars0, DATA);
         if (data_retrieved){
             printf("PRINTING DATA RECIEVED\n");
             // printDataPoint(data_retrieved, "\n");

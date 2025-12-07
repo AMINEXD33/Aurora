@@ -65,7 +65,7 @@ int INIT_health_cleaner_threads(
     // free_promise_store(store);
     // free(cleaner_thread);
     // free(args);
-    printf("[+]free\n");
+    // printf("[+]free\n");
     return (0);
 }
 
@@ -85,7 +85,7 @@ void Init_Server_multithread(PromiseStore *store) {
         perror("bind"); exit(1);
     }
     // listen to up 5 connections
-    listen(server_fd, 50);
+    listen(server_fd, 5);
     printf("[v] server is listening on 127.0.0.1\n");
     while (true) {
         // accept incoming client 
@@ -93,7 +93,11 @@ void Init_Server_multithread(PromiseStore *store) {
         ser_args->client_fd = accept(server_fd, NULL, NULL);
         ser_args->store = store;
         // on error
-        if (ser_args->client_fd < 0) { perror("accept"); free(ser_args); continue; }
+        if (ser_args->client_fd < 0) { 
+            perror("can't create socket"); 
+            free(ser_args); 
+            continue; 
+        }
         // spawn a handler thread
         pthread_t tid;
         pthread_create(&tid, NULL, handle_client_thread, ser_args);

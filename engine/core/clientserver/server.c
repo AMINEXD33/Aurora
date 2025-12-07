@@ -469,6 +469,9 @@ bool do_keep_alive(int client_fd){
  *  `NULL`: retrurn NULL 
  */
 void* handle_client_thread(void* arg){
+    if (!arg)
+        return NULL;
+
     server_arg *args = (server_arg *)arg;
     int client_fd = args->client_fd;
     PromiseStore *store = args->store;
@@ -512,6 +515,7 @@ void* handle_client_thread(void* arg){
                    // printf("adding array into cache\n");
                     Promise *promise = get_create_promise(store, arr->key);
                     publishArray(promise, arr);
+                    done_with_promise_data(promise);
                     //printf("[v] array is published\n");
                 }
                 // handle if this fails (can't get Array)
@@ -551,7 +555,8 @@ void* handle_client_thread(void* arg){
     // close conn
     close(client_fd);
     printf("\nthread done !\n");
-    free(arg);
+
+    //free(arg);
     return NULL;
 }
 

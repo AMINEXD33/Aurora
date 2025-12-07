@@ -138,7 +138,9 @@ void write_to_node(Node *node, XXH64_hash_t key_hash,
  *  `target_node`: the target node
  */
 void free_node_resources(Node *target_node){
-
+    if (!target_node){
+        return;
+    }
     // Free the data
     if (target_node->type == DATA && target_node->value.data) {
         FreeDataPoint(target_node->value.data);
@@ -272,7 +274,8 @@ Node *free_node(Node*root,  Node *target_node){
         target_node->parent = NULL;
         target_node->left = NULL;
         //printf("deleting node with key %llu\n", target_node->hashed_key);
-        free_node_resources(target_node);
+        if (target_node)
+            free_node_resources(target_node);
         return root;
     }else if(has_left && !has_right && target_node->is_root){
         //printf("case III\n");
@@ -285,7 +288,8 @@ Node *free_node(Node*root,  Node *target_node){
         target_node->right = NULL;
         
         //printf("deleting node with key %llu\n", target_node->hashed_key);
-        free_node_resources(target_node);
+        if (target_node)
+            free_node_resources(target_node);
         return new_root;
     }
     // node has right side
@@ -325,7 +329,8 @@ Node *free_node(Node*root,  Node *target_node){
             
             curr->parent = NULL;
             curr->right = NULL;
-            free_node_resources(curr);
+            if (curr)
+                free_node_resources(curr);
             
             return root;
     }
