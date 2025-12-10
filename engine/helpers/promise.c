@@ -70,6 +70,12 @@ Promise *get_promise(PromiseStore *store, char *key){
     if (node->type != PROMISE){
         printf("[x] cache found but not of type Promise , key: %s\n", key);
     }
+    if (pthread_mutex_lock(&node->value.promise->lock)){
+        node->value.promise->working_threads++;
+    }else{
+        return NULL;
+    }
+    pthread_mutex_unlock(&node->value.promise->lock);
     Promise *pr = node->value.promise;
     if (!pr){
         printf("[x] the node is promise but the promise is NULL\n");
@@ -100,10 +106,15 @@ Promise *InitPromise(char *key){
     promise->status = PENDING;
     promise->datatype.array = NULL;
     promise->datatype.data = NULL;
-    promise->access_count = 100;
+    promise->access_count = 10;
     promise->waiting_threads = 0;
     promise->working_threads = 0;
     promise->type = NOTHING;
+    promise->marked_for_deletion = false;
+        // init the lock
+    pthread_mutex_init(&promise->lock, NULL);
+    // init the signal condition
+    pthread_cond_init(&promise->ready, NULL);
     return promise;
 }
 
@@ -142,7 +153,7 @@ Promise *get_create_promise(PromiseStore *store, char *key){
         printf("no key is provided\n");
         return NULL;
     }
-    pthread_mutex_lock(&store->lock);
+    
     // scan or wait for empty memory
     while (1) {
         // Always check for existing promise first
@@ -170,19 +181,17 @@ Promise *get_create_promise(PromiseStore *store, char *key){
         // We have space and key doesn't exist, safe to create
         break;
     }
-
+    pthread_mutex_lock(&store->lock);
     //init the promise
     Promise *promise = InitPromise(key);
-    // init the lock
-    pthread_mutex_init(&promise->lock, NULL);
-    // init the signal condition
-    pthread_cond_init(&promise->ready, NULL);
 
     //printf("create empty promise for key %s\n", promise->key);
     // this could happen , better safe
     // append 
     hash_push_Promise(store->hashmap, promise);
+    pthread_mutex_lock(&promise->lock);
     store->count++;
+    pthread_mutex_unlock(&promise->lock);
     pthread_mutex_unlock(&store->lock);
     return promise;
     

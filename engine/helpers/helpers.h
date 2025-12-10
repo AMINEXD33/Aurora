@@ -80,6 +80,7 @@ typedef struct{
     unsigned int waiting_threads;
     unsigned int working_threads;
     unsigned int access_count;
+    bool marked_for_deletion;
 }Promise;
 
 

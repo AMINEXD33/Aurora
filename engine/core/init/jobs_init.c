@@ -82,10 +82,12 @@ void Init_Server_multithread(PromiseStore *store) {
     server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     // bind
     if (bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        perror("bind"); exit(1);
+        perror("bind"); 
+        exit(1);
     }
     // listen to up 5 connections
     listen(server_fd, 5);
+    int usn = 0;
     printf("[v] server is listening on 127.0.0.1\n");
     while (true) {
         // accept incoming client 
@@ -100,6 +102,7 @@ void Init_Server_multithread(PromiseStore *store) {
         }
         // spawn a handler thread
         pthread_t tid;
+
         pthread_create(&tid, NULL, handle_client_thread, ser_args);
         //pthread_join(tid, NULL);
         pthread_detach(tid); // don't need to join

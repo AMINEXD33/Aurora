@@ -1,25 +1,25 @@
 [
 {
   "directory": "/home/thedeath/Desktop/Aurora/engine/helpers",
-  "command": "/usr/bin/cc -DDATAPOINT_VERSION=\\\"1.1.0\\\" -Ddatapoint_EXPORTS -I/home/thedeath/Desktop/Aurora/include -I/usr -I/home/thedeath/Desktop/Aurora/engine/helpers -g -std=gnu11 -fPIC -g -O0 -Wall -Wextra -Wpedantic -o CMakeFiles/datapoint.dir/data.c.o -c /home/thedeath/Desktop/Aurora/engine/helpers/data.c",
+  "command": "/usr/bin/cc -DDATAPOINT_VERSION=\\\"1.1.0\\\" -Ddatapoint_EXPORTS -I/home/thedeath/Desktop/Aurora/include -I/usr -I/home/thedeath/Desktop/Aurora/engine/helpers -std=gnu11 -fPIC -O2 -Wall -Wextra -Wpedantic -o CMakeFiles/datapoint.dir/data.c.o -c /home/thedeath/Desktop/Aurora/engine/helpers/data.c",
   "file": "/home/thedeath/Desktop/Aurora/engine/helpers/data.c",
   "output": "engine/helpers/CMakeFiles/datapoint.dir/data.c.o"
 },
 {
   "directory": "/home/thedeath/Desktop/Aurora/engine/helpers",
-  "command": "/usr/bin/cc -DJSON_VERSION=\\\"1.3.0\\\" -Djson_EXPORTS -I/home/thedeath/Desktop/Aurora/include -I/usr -I/home/thedeath/Desktop/Aurora/engine/helpers -I/usr/local/include/cjson -g -std=gnu11 -fPIC -g -O0 -Wall -Wextra -Wpedantic -o CMakeFiles/json.dir/json.c.o -c /home/thedeath/Desktop/Aurora/engine/helpers/json.c",
+  "command": "/usr/bin/cc -DJSON_VERSION=\\\"1.3.0\\\" -Djson_EXPORTS -I/home/thedeath/Desktop/Aurora/include -I/usr -I/home/thedeath/Desktop/Aurora/engine/helpers -I/usr/local/include/cjson -std=gnu11 -fPIC -O2 -Wall -Wextra -Wpedantic -o CMakeFiles/json.dir/json.c.o -c /home/thedeath/Desktop/Aurora/engine/helpers/json.c",
   "file": "/home/thedeath/Desktop/Aurora/engine/helpers/json.c",
   "output": "engine/helpers/CMakeFiles/json.dir/json.c.o"
 },
 {
   "directory": "/home/thedeath/Desktop/Aurora/engine/helpers",
-  "command": "/usr/bin/cc -DFILES_VERSION=\\\"1.0.1\\\" -Dfiles_EXPORTS -I/home/thedeath/Desktop/Aurora/include -I/usr -I/home/thedeath/Desktop/Aurora/engine/helpers -I/usr/local/include/cjson -g -std=gnu11 -fPIC -g -O0 -Wall -Wextra -Wpedantic -o CMakeFiles/files.dir/files.c.o -c /home/thedeath/Desktop/Aurora/engine/helpers/files.c",
+  "command": "/usr/bin/cc -DFILES_VERSION=\\\"1.0.1\\\" -Dfiles_EXPORTS -I/home/thedeath/Desktop/Aurora/include -I/usr -I/home/thedeath/Desktop/Aurora/engine/helpers -I/usr/local/include/cjson -std=gnu11 -fPIC -O2 -Wall -Wextra -Wpedantic -o CMakeFiles/files.dir/files.c.o -c /home/thedeath/Desktop/Aurora/engine/helpers/files.c",
   "file": "/home/thedeath/Desktop/Aurora/engine/helpers/files.c",
   "output": "engine/helpers/CMakeFiles/files.dir/files.c.o"
 },
 {
   "directory": "/home/thedeath/Desktop/Aurora/engine/helpers",
-  "command": "/usr/bin/cc  -I/home/thedeath/Desktop/Aurora/include -I/usr -I/usr/local/include/cjson -I/home/thedeath/Desktop/Aurora/engine/helpers -g -std=gnu11 -g -O0 -Wall -Wextra -Wpedantic -o CMakeFiles/testwhole.dir/test.c.o -c /home/thedeath/Desktop/Aurora/engine/helpers/test.c",
+  "command": "/usr/bin/cc -DDATAPOINT_VERSION=\\\"1.1.0\\\" -DFILES_VERSION=\\\"1.0.1\\\" -DJSON_VERSION=\\\"1.3.0\\\" -I/home/thedeath/Desktop/Aurora/include -I/usr -I/usr/local/include/cjson -I/home/thedeath/Desktop/Aurora/engine/helpers -std=gnu11 -O2 -Wall -Wextra -Wpedantic -o CMakeFiles/testwhole.dir/test.c.o -c /home/thedeath/Desktop/Aurora/engine/helpers/test.c",
   "file": "/home/thedeath/Desktop/Aurora/engine/helpers/test.c",
   "output": "engine/helpers/CMakeFiles/testwhole.dir/test.c.o"
 }

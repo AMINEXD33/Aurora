@@ -167,58 +167,34 @@ Data* deserialize_data(uint8_t *buffer, size_t *offset) {
     bool error_detected = false;
     switch(d->type) {
         case INT:
-            int *int_numb = malloc(sizeof(int));
-            if (!int_numb){
-                printf("can't malloc size of int for deserialization\n");
-                break;
-            }
-            memcpy(int_numb, buffer + *offset, sizeof(int));
-            WriteDataInt(d, *int_numb);
+            int int_numb;
+            memcpy(&int_numb, buffer + *offset, sizeof(int));
+            WriteDataInt(d, int_numb);
             *offset += sizeof(int);
             break;
         case FLOAT:
-            float *float_numb = malloc(sizeof(float));
-            if (!float_numb){
-                printf("can't malloc size of float for deserialization\n");
-                error_detected = true;
-                break;
-            }
-            memcpy(float_numb, buffer + *offset, sizeof(float));
-            WriteDataFloat(d, *float_numb);
+            float float_numb;
+            memcpy(&float_numb, buffer + *offset, sizeof(float));
+            WriteDataFloat(d, float_numb);
             *offset += sizeof(float);
             break;
         case LONG:
-            long *long_numb = malloc(sizeof(long));
-            if (!long_numb){
-                printf("can't malloc size of long for deserialization\n");
-                error_detected = true;
-                break;
-            }
-            memcpy(long_numb, buffer + *offset, sizeof(long));
-            WriteDataLong(d, *long_numb);
+            long long_numb;
+            memcpy(&long_numb, buffer + *offset, sizeof(long));
+            WriteDataLong(d, long_numb);
             *offset += sizeof(long);
             break;
 
         case DOUBLE:
-            double *double_numb = malloc(sizeof(double));
-            if (!double_numb){
-                printf("can't malloc size of double for deserialization\n");
-                error_detected = true;
-                break;
-            }
-            memcpy(double_numb, buffer + *offset, sizeof(double));
-            WriteDataDouble(d, *double_numb);
+            double double_numb;
+            memcpy(&double_numb, buffer + *offset, sizeof(double));
+            WriteDataDouble(d, double_numb);
             *offset += sizeof(double);
             break;
         case BOOLEAN:
-            bool *bool_numb = malloc(sizeof(bool));
-            if (!bool_numb){
-                printf("can't malloc size of boolean for deserialization\n");
-                error_detected = true;
-                break;
-            }
-            memcpy(bool_numb, buffer + *offset, sizeof(bool));
-            WriteDataBool(d, *bool_numb);
+            bool bool_numb;
+            memcpy(&bool_numb, buffer + *offset, sizeof(bool));
+            WriteDataBool(d, &bool_numb);
             *offset += sizeof(bool);
             break;
         case STRING: {
@@ -228,7 +204,7 @@ Data* deserialize_data(uint8_t *buffer, size_t *offset) {
             *offset += sizeof(uint32_t);
 
             // Allocate memory and copy string
-            d->value.string_val = malloc(len + 1);
+            d->value.string_val = calloc(1, len + 1);
             if (!d->value.string_val){
                 printf("can't malloc size of string for deserialization\n");
                 error_detected = true;
@@ -248,7 +224,7 @@ Data* deserialize_data(uint8_t *buffer, size_t *offset) {
 
     if (len > 0){
         // Allocate memory and copy string
-        d->key = malloc(len + 1);
+        d->key = calloc(1, len + 1);
         if (!d->key){
             printf("can't malloc size of string for deserialization\n");
             error_detected = true;
@@ -307,7 +283,7 @@ Array *deserialize_array_data(uint8_t *buffer, size_t *offset){
 
     if (len > 0){
         // Allocate memory and copy string
-        arr->key = malloc(len + 1);
+        arr->key = calloc(1, len + 1);
         if (!arr->key){
             printf("can't malloc size of string for deserialization\n");
         }

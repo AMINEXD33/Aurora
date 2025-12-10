@@ -390,7 +390,7 @@ void *get_cache_datatype_protocol(int sock, char *key, complex_structures dataty
     size_t estimated_size = strlen(key);
     //printf("[DEBUG] Key size: %zu, Key: %s\n", estimated_size, key);
     
-    // send the size
+    // send the size of key
     n = write_all(sock, &estimated_size, sizeof(size_t));
     if (n != sizeof(size_t)){
         printf("[ERROR] Failed to send key size\n");
@@ -414,8 +414,14 @@ void *get_cache_datatype_protocol(int sock, char *key, complex_structures dataty
         return NULL;
     }
     
-    if (response_size == 0){
+    if (response_size == -1){
         printf("[x] CACHE MISS DUDE\n");
+        return NULL;
+    }else if (response_size == -2){
+        printf("[x] CACHE DATA IS NULL\n");
+        return NULL;
+    }else if (response_size == 0){
+        printf("[x] CACHE NOT READY\n");
         return NULL;
     }
     
@@ -496,11 +502,13 @@ int set_socket_timeout(int sock, int seconds) {
 int start_connection(struct sockaddr_un *addr){
     int sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sock < 0) { 
-        perror("socket creation error"); 
+        perror("socket creation error");
+        close(sock);
         return -1;
     }
     if (connect(sock, (struct sockaddr *)addr, sizeof(*addr)) < 0) {
         perror("can't connect to the server");
+        close(sock);
         return -1;
     }
     return sock;
@@ -525,28 +533,22 @@ struct sockaddr_un * get_addr(){
 /**
  * just a test and show of concept function of how a work flow example
  */
-int sendstuff() {
+int test_case() {
     struct sockaddr_un *addr = get_addr();
     if (!addr){
         return -1;
     }
     int max_conn_retries = 0;
-    while (access(SOCKET_PATH, F_OK) != 0) {
-        printf("DAMN waiting for server tp start \n");
-        usleep(100000); // wait 1ms
-        if (max_conn_retries >= 10){
-            return -1;
-        }
-        max_conn_retries++;
-    }
     int sock = start_connection(addr);
     if (sock < 0){
         printf("can't create sock\n");
+        free(addr);
         return -1;
     }
 
     if (set_socket_timeout(sock, 10) == -1){
         printf("can't set timeout\n");
+        free(addr);
         close(sock);
         return -1;
     }
@@ -560,6 +562,7 @@ int sendstuff() {
     if (stat1 == -1){
         printf("ERROR ACURED while claiming work quiting\n");
         close(sock);
+        free(addr);
         return -1;
     }
 
@@ -656,4 +659,11 @@ int sendstuff() {
     close(sock);
 
     return 0;
+}
+
+int sendstuff() {
+    while (true){
+        sleep(1);
+        test_case();
+    }
 }

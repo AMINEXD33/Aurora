@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -Wl,--dependency-file=CMakeFiles/json.dir/link.d -shared -Wl,-soname,libjson.so.1 -o libjson.so.1.3.0 CMakeFiles/json.dir/json.c.o  -lcjson

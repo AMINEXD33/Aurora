@@ -12,26 +12,29 @@ int explore_btree_with_root(
         Node *root,
         Node *current_node)
 ) {
-    if (!root ) return -1;
-
+    if (!root) return -1;
     
-    // a simple array as queue
     size_t capacity = 256 * 4;
     size_t size = 0;
     size_t front = 0;
     Node **queue = malloc(capacity * sizeof(Node*));
     
-    if (!queue) {
-        printf("[ERROR] Can't allocate queue\n");
-        return -1;
-    }
+    if (!queue) return -1;
     
     queue[size++] = root;
     
+    // Process while building the queue
     while (front < size) {
         Node *current = queue[front++];
         
-        // add children to queue before freeing
+        // Process THIS node before adding children
+        if (do_something(store, threshold, root, current) == -1){
+            free(queue);
+            return -1;
+        }
+        
+        // NOW add children (if current wasn't deleted)
+        // Check if current is still valid first!
         if (current->left) {
             if (size >= capacity) {
                 capacity *= 2;
@@ -48,16 +51,7 @@ int explore_btree_with_root(
             queue[size++] = current->right;
         }
     }
-
-    for (unsigned long int index= 0; index < size; index++){
-        Node *current = queue[index];
-        if (do_something(store , threshold, root, current) == -1){
-            free(queue);
-            printf("[x] something wrong in the do something func!\n");
-            return -1;
-        }
-        
-    }
+    
     free(queue);
     return 0;
 }
@@ -70,12 +64,14 @@ int free_target_node_from_hmap(
     Node *current)
     {
     // ignore the nodes that are null or the that don't contain a promise 
-    if (!current || !current->value.promise) 
+    if (!current || current->type != PROMISE || !current->value.promise) {
         return 0;
+    }
     // update max access count (max threshold)
     if (current->value.promise->access_count > store->max_threshold){
         store->max_threshold = current->value.promise->access_count;
     }
+
     // if this cash needs to get cleaned
     if (threshold >= current->value.promise->access_count){
         // ofc free when no thread is working or waiting for the data
@@ -89,17 +85,22 @@ int free_target_node_from_hmap(
             printf("\t[XXXXXXXXXXXXXXXXXXX] freeing promise %s\n" ,current->value.promise->key);
             unsigned long bucket = current->hashed_key % store->hashmap->size;
             // pthread_mutex_unlock(&current->value.promise->lock);
+            
+            pthread_mutex_unlock(&current->value.promise->lock);
             // free promise
-            store->hashmap->node[bucket] = free_node(root, current);
+            store->hashmap->node[bucket] = free_node(
+                store->hashmap->node[bucket], 
+                current
+            );
             // update the count
             store->count--;
             // broadcast that we cleaned it , for any thread waiting for a free slot
             pthread_cond_broadcast(&store->slot_available);
-        }else{
-            printf("\t\t[can't] can't free this fucker\n");
-            printf("\t\t waiting = %d\n", current->value.promise->waiting_threads);
-            printf("\t\t working = %d\n", current->value.promise->working_threads);
-        }
+         }else{
+             printf("\t\t[can't] can't free this fucker\n");
+             printf("\t\t waiting = %d\n", current->value.promise->waiting_threads);
+             printf("\t\t working = %d\n", current->value.promise->working_threads);
+         }
     }
     return 0;
 }

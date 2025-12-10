@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -Wl,--dependency-file=CMakeFiles/files.dir/link.d -shared -Wl,-soname,libfiles.so.1 -o libfiles.so.1.0.1 CMakeFiles/files.dir/files.c.o  -lcjson

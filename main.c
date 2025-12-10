@@ -71,10 +71,7 @@ int main (char **argc, int argv){
             // child
             printf("[child %u] pid=%d ppid=%d\n", i, getpid(), getppid());
             // SEND some stuff every 10 seconds
-            while (true){
-                sendstuff();
-                sleep(0.5);
-            }
+            sendstuff();
             exit(0); // IMPORTANT: prevent it from re-running the loop
         }
         // parent continues to next iteration

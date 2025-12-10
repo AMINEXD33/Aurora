@@ -122,6 +122,11 @@ Data * handle_data(int client_fd, PromiseStore *store){
     }
     if (data->key)
         printf("data key=> %s\n", data->key);
+    else{
+        FreeDataPoint(data);
+        free(buffer);
+        return NULL;
+    }
     printDataPoint(data, "\n");
     free(buffer);
     return data;
@@ -185,7 +190,6 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
         status resp = PENDING;
         if (send_buffer_with_retry(client_fd, &resp, sizeof(status), 10) == -1){
             printf("can't send pending response to the client\n");
-            free_promise(promise);
             return (char *)key;
         }
         printf("sent , PENDING\n");
@@ -257,6 +261,8 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
     // null checks for promise 
     if (promise == NULL){
         printf("[SERVER]promise is null\n");
+        size_t size = -2;
+        n = send_buffer_with_retry(client_fd, &size, sizeof(size_t), 10);
         free(key);
         return -1;
     }
@@ -267,7 +273,7 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
         case DATA:
             if (!promise->datatype.data){
                 //printf("[SERVER] Can't find cache of type DATA (cache miss)\n");
-                size_t size = 0;
+                size_t size = -1;
                 // send 0 to the client to notify that the promise data is NULL
                 n = send_buffer_with_retry(client_fd, &size, sizeof(size_t), 10);
                 free(key);
@@ -277,7 +283,7 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
         case ARRAY:
             if (!promise->datatype.array){
                 //printf("[SERVER] Can't find cache of type ARRAY (cache miss)\n");
-                size_t size = 0;
+                size_t size = -1;
                 // send 0 to the client to notify that the promise array is NULL
                 n = send_buffer_with_retry(client_fd, &size, sizeof(size_t), 10);
                 free(key);
@@ -285,19 +291,6 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
             }
         default:
             break;
-    }
-    if (promise == NULL || !promise->datatype.array){
-        // cache miss send a size 0
-        //printf("[SERVER] Cache miss for key '%s'\n", key);
-        size_t size = 0;
-        n = send_buffer_with_retry(client_fd, &size, sizeof(size_t), 10);
-        //printf("[SERVER] Sent size 0, result: %zd\n", n);
-        if(n == -1){
-            free(key);
-            return -1;
-        }
-        free(key);
-        return 0;
     }
     // handle when the promise is not ready
     if (promise->status != READY){
@@ -425,6 +418,11 @@ Array *handle_array(int client_fd, PromiseStore *store){
     Array *array = deserialize_array_data(buffer, &offset);
     if (array->key)
         printf("array key=> %s\n", array->key);
+    else{
+        free_array(array);
+        free(buffer);
+        return NULL;
+    }
     printArray(array);
     free(buffer);
     return array;
@@ -466,8 +464,9 @@ bool do_keep_alive(int client_fd){
  *  `NULL`: retrurn NULL 
  */
 void* handle_client_thread(void* arg){
-    if (!arg)
+    if (!arg){
         return NULL;
+    }
 
     server_arg *args = (server_arg *)arg;
     int client_fd = args->client_fd;

@@ -16,21 +16,23 @@
 
 
 typedef enum {
-    EXPECT_DATA , 
-    EXPECT_ARRAY, 
-    EXPECT_CLAIM_WORK,
-    GET_ARRAY,
-    GET_DATA
+    EXPECT_DATA = 31, 
+    EXPECT_ARRAY = 32, 
+    EXPECT_CLAIM_WORK = 33,
+    GET_ARRAY = 34,
+    GET_DATA = 35
 } mssg_type;
 #define MAGIC_NUMBER 0xA1B2C3D4
 typedef enum {
-    RESPONSE_ACK,
-    RESPONSE_NACK,
+    DATA_NOT_AVAILABLE = 41,
+    ARRAY_NOT_AVAILABLE = 42,
+    PROMISE_EMPTY = 43
 } response_type;
 
 typedef struct{
     PromiseStore *store;
     int client_fd;
+
 }server_arg;
 
 
