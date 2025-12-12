@@ -251,4 +251,8 @@ int hash_push_Array(Hashmap *hashmap, Array *value);
 int hash_push_Promise(Hashmap *hashmap, Promise *value);
 Hashmap *resize_hashmap(Hashmap *old_hashmap);
 void rand_str(char *dest, size_t length);
+
+Promise *deep_copy_Promise( Promise *promise);
+Array *deep_copy_Array(Array *array);
+Data *deep_copy_Data(Data *data);
 #endif

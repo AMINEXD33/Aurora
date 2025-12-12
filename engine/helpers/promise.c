@@ -62,23 +62,35 @@ void free_promise_store(PromiseStore *store){
  * and O(log n) worse
  */
 Promise *get_promise(PromiseStore *store, char *key){
-    Node *node = hash_search(store->hashmap, key);
-    if (!node){
-        printf("[x] can't find promise with key %s\n", key);
+Node *node = hash_search(store->hashmap, key);
+    if (!node || node->type != PROMISE || !node->value.promise) {
+        // Consolidated search/null checks
+        if (!node) printf("[x] can't find promise with key %s\n", key);
+        else if (node->type != PROMISE) printf("[x] cache found but not of type Promise, key: %s\n", key);
         return NULL;
     }
-    if (node->type != PROMISE){
-        printf("[x] cache found but not of type Promise , key: %s\n", key);
-    }
-    if (pthread_mutex_lock(&node->value.promise->lock)){
-        node->value.promise->working_threads++;
-    }else{
+
+    Promise *p = node->value.promise;
+    Promise *pr = NULL;
+
+    // Use trylock to avoid blocking, honoring the user's intent:
+    if (pthread_mutex_trylock(&p->lock) == 0) { // Success returns 0
+        // Lock acquired successfully!
+        // Increment access count here (protected by lock)
+        p->access_count += 1;
+        
+        // Deep copy the promise data
+        pr = deep_copy_Promise(p);
+        
+        pthread_mutex_unlock(&p->lock); // Unlock when done with access
+    } else {
+        // Lock failed (another thread has the lock)
+        printf("[xXXXX] couldn't lock it to deep copy it. Skipping this read.\n");
         return NULL;
     }
-    pthread_mutex_unlock(&node->value.promise->lock);
-    Promise *pr = node->value.promise;
+
     if (!pr){
-        printf("[x] the node is promise but the promise is NULL\n");
+        printf("[x] the node is promise but the deep copy failed\n");
         return NULL;
     }
     return pr;
@@ -168,7 +180,7 @@ Promise *get_create_promise(PromiseStore *store, char *key){
             return promise->value.promise;
         }
         // Check if store is full
-        if (store->count >= store->capacity){
+        if (store->count + 1 >= store->capacity){
             //printf("[Thread %lu] Waiting for slot (count=%lu)...\n", 
                    //pthread_self(), store->count);
             // wait for the memory to be freed

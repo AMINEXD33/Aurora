@@ -554,8 +554,8 @@ int test_case() {
     }
 
     // claim work
-    char chars0[10];
-    rand_str(chars0, 9);
+    char chars0[3];
+    rand_str(chars0, 2);
     Data *data = InitDataPoint(chars0);
     WriteDataFloat(data, 12141.151);
     int stat1 = claim_work_client(sock, chars0, 10);
@@ -565,25 +565,18 @@ int test_case() {
         free(addr);
         return -1;
     }
-
-    if (stat1 == PENDING){
-        sleep(2);
-        send_keep_alive(sock);
-        send_data_with_retry(sock, data, 10);
-        printf("[V] data was sent\n");
-    }
-    else if(stat1 == READY){
-        send_keep_alive(sock);
-        Data *data_retrieved = (Data *)get_cache_datatype_protocol(sock, chars0, DATA);
-        if (data_retrieved){
-            printf("PRINTING DATA RECIEVED\n");
-            // printDataPoint(data_retrieved, "\n");
-        }else{
-            printf("[XXXXX] READY but nothing is returning(DATA)\n");
-        }
+    sleep(2);
+    send_data_with_retry(sock, data, 10);
+    printf("[V] data was sent\n");
+    sleep(2);
+    Data *data_retrieved = (Data *)get_cache_datatype_protocol(sock, chars0, DATA);
+    if (data_retrieved){
+        printf("PRINTING DATA RECIEVED\n");
+        printDataPoint(data_retrieved, "\n");
     }else{
-        printf("[LL] promise is not ready to get\n");
+        printf("[XXXXX] READY but nothing is returning(DATA)\n");
     }
+
 
 
     // char chars[10];

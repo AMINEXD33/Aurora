@@ -34,17 +34,24 @@ ssize_t write_all(int client_fd, const void *buff, size_t count) {
  *  `ssize_t`: the size of the read data
  */
 ssize_t read_all(int client_fd, void *buff, size_t count) {
-    size_t total_read = 0;
+size_t total_read = 0;
     uint8_t *ptr = buff;
 
     while (total_read < count) {
         ssize_t n = read(client_fd, ptr + total_read, count - total_read);
-        if (n == 0) break;
+        
+        if (n == 0) {
+            break; 
+        }
         if (n < 0) {
             if (errno == EINTR) continue;
-            return -1;
+            return -1; 
         }
         total_read += n;
+    }
+    
+    if (total_read != count) {
+        return -1;
     }
     return total_read;
 }
@@ -374,6 +381,7 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
     //printf("[SERVER] Successfully sent datatype\n");
     free(buffer);
     free(key);
+    free(promise);
     return 0;
 }
 
@@ -472,18 +480,14 @@ void* handle_client_thread(void* arg){
     int client_fd = args->client_fd;
     PromiseStore *store = args->store;
     // flag to keep conn alive
-    bool flag = true;
-
-    while (flag){
+    while (true){
         // assume it will be closed
-        flag = false;
         // get the type of the sent data
         mssg_type type;
         ssize_t n = read_all(client_fd, &type, sizeof(mssg_type));
         if(n != sizeof(mssg_type))
         {
-            perror("read failed 1\n");
-            continue;
+            break;
         }
         // based on the type of request
         switch (type)
@@ -511,8 +515,9 @@ void* handle_client_thread(void* arg){
                     // cache the array
                    // printf("adding array into cache\n");
                     Promise *promise = get_create_promise(store, arr->key);
-                    publishArray(promise, arr);
-                    done_with_promise_data(promise);
+                    if (promise->status == PENDING){
+                        publishArray(promise, arr);
+                    }
                     //printf("[v] array is published\n");
                 }
                 // handle if this fails (can't get Array)
@@ -542,12 +547,6 @@ void* handle_client_thread(void* arg){
             default:
                 break;
         }
-        // if no keep alive signal is recieved  kill the connections
-        if (do_keep_alive(client_fd)){
-            flag = true;
-        }else{
-            printf("killing this connection \n");
-        }  
     }
     // close conn
     close(client_fd);

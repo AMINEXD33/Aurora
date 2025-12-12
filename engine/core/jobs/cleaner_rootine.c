@@ -6,9 +6,13 @@ int explore_btree_with_root(
     PromiseStore *store,
     Node *root,
     double threshold,
+    unsigned long int index,
+    double occupancy,
     int(do_something)(
         PromiseStore *store, 
         double threshold,
+        unsigned long int index,
+        double occupancy,
         Node *root,
         Node *current_node)
 ) {
@@ -26,13 +30,7 @@ int explore_btree_with_root(
     // Process while building the queue
     while (front < size) {
         Node *current = queue[front++];
-        
-        // Process THIS node before adding children
-        if (do_something(store, threshold, root, current) == -1){
-            free(queue);
-            return -1;
-        }
-        
+    
         // NOW add children (if current wasn't deleted)
         // Check if current is still valid first!
         if (current->left) {
@@ -51,6 +49,14 @@ int explore_btree_with_root(
             queue[size++] = current->right;
         }
     }
+
+    for (unsigned long int node = 0; node < size; node++){
+        Node *current = queue[node];
+        if (do_something(store, threshold, index, occupancy, root, current) == -1){
+            free(queue);
+            return -1;
+        }
+    }
     
     free(queue);
     return 0;
@@ -60,6 +66,8 @@ int explore_btree_with_root(
 int free_target_node_from_hmap(
     PromiseStore *store,  
     double threshold,
+    unsigned long int index,
+    double occupancy,
     Node *root,
     Node *current)
     {
@@ -77,30 +85,40 @@ int free_target_node_from_hmap(
         // ofc free when no thread is working or waiting for the data
         //printf("waiting thread %d\nworking threads %d\n",promise->waiting_threads,
         //promise->working_threads);
-        if (current->value.promise->waiting_threads == 0 && current->value.promise->working_threads == 0) {
-            // try to lock promise
-            if (pthread_mutex_trylock(&current->value.promise->lock) != 0)
-                return 0;
+        if (pthread_mutex_trylock(&current->value.promise->lock) == 0){
+        if ( (( (int)current->value.promise->waiting_threads <= 0 ) && 
+            ( (int)current->value.promise->working_threads <= 0 )) ||
+            occupancy >= 100
+        ){
+                printf("\t[XXXXXXXXXXXXXXXXXXX] freeing promise %s\n" ,current->value.promise->key);
+                // pthread_mutex_unlock(&current->value.promise->lock);
+                
+                pthread_mutex_unlock(&current->value.promise->lock);
+                // free promise
+                Node *nd = free_node(
+                    store->hashmap->node[index], 
+                    current
+                );
+                // if root is NULL, well we're not allowed to assign NULL to
+                // the table , we will create a node here
+                if (!nd)
+                    store->hashmap->node[index] = InitBtree();
+                else
+                    store->hashmap->node[index] = nd;
+
+                // update the count
+                store->count--;
+                // broadcast that we cleaned it , for any thread waiting for a free slot
+                pthread_cond_broadcast(&store->slot_available);
+            }else{
+                printf("\t\t[can't] can't free this fucker\n");
+                printf("\t\t waiting = %d\n", current->value.promise->waiting_threads);
+                printf("\t\t working = %d\n", current->value.promise->working_threads);
+                pthread_mutex_unlock(&current->value.promise->lock);
+                
+            }
             
-            printf("\t[XXXXXXXXXXXXXXXXXXX] freeing promise %s\n" ,current->value.promise->key);
-            unsigned long bucket = current->hashed_key % store->hashmap->size;
-            // pthread_mutex_unlock(&current->value.promise->lock);
-            
-            pthread_mutex_unlock(&current->value.promise->lock);
-            // free promise
-            store->hashmap->node[bucket] = free_node(
-                store->hashmap->node[bucket], 
-                current
-            );
-            // update the count
-            store->count--;
-            // broadcast that we cleaned it , for any thread waiting for a free slot
-            pthread_cond_broadcast(&store->slot_available);
-         }else{
-             printf("\t\t[can't] can't free this fucker\n");
-             printf("\t\t waiting = %d\n", current->value.promise->waiting_threads);
-             printf("\t\t working = %d\n", current->value.promise->working_threads);
-         }
+        }
     }
     return 0;
 }
@@ -125,6 +143,7 @@ void *cleaner_thread(void *arg){
         // get the new threshold
         double threshold = update_store_threshold(store);
         if (occupancy < 50){
+            pthread_mutex_unlock(&store->lock);
             sleep(3);
             continue;
         }
@@ -138,12 +157,18 @@ void *cleaner_thread(void *arg){
             explore_btree_with_root(
                 store, 
                 root,
-                threshold, 
+                threshold,
+                index,
+                occupancy,
                 free_target_node_from_hmap);
         }
         // unlock the store
         pthread_mutex_unlock(&store->lock);
         printf("[+] cleaning round\n");
-        sleep(3);
+        if (threshold < 70){
+            sleep(10);
+        }else if (threshold > 70){
+            sleep(1);
+        }
     }
 }
