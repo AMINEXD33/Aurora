@@ -192,6 +192,10 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
     key[size_of_buff] = '\0';
     // try to find the promise
     Promise *promise = get_create_promise(store, (char *)key);
+    if (!promise){
+        free(key);
+        return NULL;
+    }
     // if we claimed the work for this promise , notify the client
     if (claim_work(promise)){
         status resp = PENDING;

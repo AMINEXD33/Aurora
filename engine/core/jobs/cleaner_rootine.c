@@ -151,7 +151,8 @@ void *cleaner_thread(void *arg){
         pthread_mutex_lock(&store->lock);
         printf("\t\t[threshold] %lf\n", threshold);
         // for every promise
-        for (unsigned long int index = 0; index < store->hashmap->size; index ++){
+        unsigned long int index = 0;
+        for (index; index < store->hashmap->size; index ++){
             if (!store->hashmap->node[index]) continue;
             Node *root = store->hashmap->node[index];
             explore_btree_with_root(
@@ -164,7 +165,7 @@ void *cleaner_thread(void *arg){
         }
         // unlock the store
         pthread_mutex_unlock(&store->lock);
-        printf("[+] cleaning round\n");
+        printf("[+] cleaning round total of %ld\n", index);
         if (threshold < 70){
             sleep(10);
         }else if (threshold > 70){

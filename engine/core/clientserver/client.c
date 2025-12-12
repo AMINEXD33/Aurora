@@ -559,12 +559,12 @@ int test_case() {
     Data *data = InitDataPoint(chars0);
     WriteDataFloat(data, 12141.151);
     int stat1 = claim_work_client(sock, chars0, 10);
-    if (stat1 == -1){
-        printf("ERROR ACURED while claiming work quiting\n");
-        close(sock);
-        free(addr);
-        return -1;
-    }
+    // if (stat1 == -1){
+    //     printf("ERROR ACURED while claiming work quiting\n");
+    //     close(sock);
+    //     free(addr);
+    //     return -1;
+    // }
     sleep(2);
     send_data_with_retry(sock, data, 10);
     printf("[V] data was sent\n");

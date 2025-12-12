@@ -172,22 +172,25 @@ Promise *get_create_promise(PromiseStore *store, char *key){
         Node *promise = hash_search(store->hashmap, key);
         if (promise && promise->type == PROMISE && promise->value.promise){
             // this cashe is accessed one more time
-            pthread_mutex_lock(&promise->value.promise->lock);
-            promise->value.promise->access_count += 1;
-            pthread_mutex_unlock(&promise->value.promise->lock);
-            // unlock store here sinse we returning
-            pthread_mutex_unlock(&store->lock);
-            return promise->value.promise;
+            if (pthread_mutex_trylock(&promise->value.promise->lock) == 0){
+                promise->value.promise->access_count += 1;
+                pthread_mutex_unlock(&promise->value.promise->lock);
+                // unlock store here sinse we returning
+                pthread_mutex_unlock(&store->lock);
+                return promise->value.promise;
+            }
         }
         // Check if store is full
-        if (store->count + 1 >= store->capacity){
+        if (store->count >= store->capacity){
             //printf("[Thread %lu] Waiting for slot (count=%lu)...\n", 
                    //pthread_self(), store->count);
             // wait for the memory to be freed
-            pthread_cond_wait(&store->slot_available, &store->lock);
+            //<! trying with out> pthread_cond_wait(&store->slot_available, &store->lock);
+            return NULL;
             //printf("[Thread %lu] Woke up, rechecking...\n", pthread_self());
             // rescan
-            continue;  // Re-check everything from the top
+            
+            //continue;  // Re-check everything from the top
         }
         
         // We have space and key doesn't exist, safe to create
@@ -201,9 +204,9 @@ Promise *get_create_promise(PromiseStore *store, char *key){
     // this could happen , better safe
     // append 
     hash_push_Promise(store->hashmap, promise);
-    pthread_mutex_lock(&promise->lock);
+    // pthread_mutex_lock(&promise->lock);
     store->count++;
-    pthread_mutex_unlock(&promise->lock);
+    // pthread_mutex_unlock(&promise->lock);
     pthread_mutex_unlock(&store->lock);
     return promise;
     
@@ -219,19 +222,24 @@ Promise *get_create_promise(PromiseStore *store, char *key){
  *  `false`: work not claimed
  */
 bool claim_work(Promise *promise){
-    pthread_mutex_lock(&promise->lock);
-    // check promise status
-    if (promise->status == PENDING){
-        promise->status = COMPUTING;
-        // point out that a thread is working with this data
-        promise->working_threads++;
+    if (!promise)
+        return false;
+    if (pthread_mutex_trylock(&promise->lock) == 0){
+        // check promise status
+        if (promise->status == PENDING){
+            promise->status = COMPUTING;
+            // point out that a thread is working with this data
+            promise->working_threads++;
+            pthread_mutex_unlock(&promise->lock);
+            //printf("claimed work for key %s\n", promise->key);
+            // we got the work
+            return true;
+        }
+        //printf("didn't claimed work for key %s\n", promise->key);
         pthread_mutex_unlock(&promise->lock);
-        //printf("claimed work for key %s\n", promise->key);
-        // we got the work
-        return true;
-    }
-    //printf("didn't claimed work for key %s\n", promise->key);
-    pthread_mutex_unlock(&promise->lock);
+        return false;
+        }
+    // can't get lock fail
     return false;
 }
 
@@ -248,14 +256,15 @@ void publishData(Promise *promise, Data *result){
         return;
     }
     //printf("publishing key %s\n", promise->key);
-    pthread_mutex_lock(&promise->lock);
-    // append data
-    promise->datatype.data = result;
-    // set as ready
-    promise->status = READY;
-    promise->type = DATA;
-    pthread_cond_broadcast(&promise->ready);
-    pthread_mutex_unlock(&promise->lock);
+    if (pthread_mutex_trylock(&promise->lock) == 0){
+        // append data
+        promise->datatype.data = result;
+        // set as ready
+        promise->status = READY;
+        promise->type = DATA;
+        pthread_cond_broadcast(&promise->ready);
+        pthread_mutex_unlock(&promise->lock);
+    }
 }
 
 /**
@@ -271,14 +280,15 @@ void publishArray(Promise *promise, Array *result){
         return;
     }
     //printf("publishing key %s\n", promise->key);
-    pthread_mutex_lock(&promise->lock);
-    // append data
-    promise->datatype.array = result;
-    // set as ready
-    promise->status = READY;
-    promise->type = ARRAY;
-    pthread_cond_broadcast(&promise->ready);
-    pthread_mutex_unlock(&promise->lock);
+    if (pthread_mutex_trylock(&promise->lock) == 0){
+        // append data
+        promise->datatype.array = result;
+        // set as ready
+        promise->status = READY;
+        promise->type = ARRAY;
+        pthread_cond_broadcast(&promise->ready);
+        pthread_mutex_unlock(&promise->lock);
+    }
 }
 /**
  * wait for a promise of datatype Data to resolse
@@ -332,6 +342,8 @@ Array *wait_for_result_array(Promise *promise){
  * #### the cleaner thread will take care of it 
 */
 void done_with_promise_data(Promise *promise){
+    if (!promise)
+        return;
     pthread_mutex_lock(&promise->lock);
     //printf(">) done with the data promise\n");
     promise->working_threads--;
