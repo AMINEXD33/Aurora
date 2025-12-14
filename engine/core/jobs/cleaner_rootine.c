@@ -90,7 +90,7 @@ int free_target_node_from_hmap(
             ( (int)current->value.promise->working_threads <= 0 )) ||
             occupancy >= 100
         ){
-                printf("\t[XXXXXXXXXXXXXXXXXXX] freeing promise %s\n" ,current->value.promise->key);
+                //printf("\t[XXXXXXXXXXXXXXXXXXX] freeing promise %s\n" ,current->value.promise->key);
                 // pthread_mutex_unlock(&current->value.promise->lock);
                 
                 pthread_mutex_unlock(&current->value.promise->lock);
@@ -110,13 +110,14 @@ int free_target_node_from_hmap(
                 store->count--;
                 // broadcast that we cleaned it , for any thread waiting for a free slot
                 pthread_cond_broadcast(&store->slot_available);
-            }else{
-                printf("\t\t[can't] can't free this fucker\n");
-                printf("\t\t waiting = %d\n", current->value.promise->waiting_threads);
-                printf("\t\t working = %d\n", current->value.promise->working_threads);
-                pthread_mutex_unlock(&current->value.promise->lock);
+        }
+             //else{
+            //     printf("\t\t[can't] can't free this fucker\n");
+            //     printf("\t\t waiting = %d\n", current->value.promise->waiting_threads);
+            //     printf("\t\t working = %d\n", current->value.promise->working_threads);
+            //     pthread_mutex_unlock(&current->value.promise->lock);
                 
-            }
+            // }
             
         }
     }
@@ -149,7 +150,7 @@ void *cleaner_thread(void *arg){
         }
         // lock the store
         pthread_mutex_lock(&store->lock);
-        printf("\t\t[threshold] %lf\n", threshold);
+        //printf("\t\t[threshold] %lf\n", threshold);
         // for every promise
         unsigned long int index = 0;
         for (index; index < store->hashmap->size; index ++){
@@ -165,11 +166,7 @@ void *cleaner_thread(void *arg){
         }
         // unlock the store
         pthread_mutex_unlock(&store->lock);
-        printf("[+] cleaning round total of %ld\n", index);
-        if (threshold < 70){
-            sleep(10);
-        }else if (threshold > 70){
-            sleep(1);
-        }
+        //printf("[+] cleaning round total of %ld\n", index);
+        usleep(1000);
     }
 }

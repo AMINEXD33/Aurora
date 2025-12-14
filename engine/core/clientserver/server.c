@@ -118,7 +118,7 @@ Data * handle_data(int client_fd, PromiseStore *store){
         free(buffer);
         return NULL;
     }else{
-        printf("magic :)\n");
+        //printf("magic :)\n");
     }
 
     size_t offset = sizeof(uint32_t);
@@ -127,14 +127,14 @@ Data * handle_data(int client_fd, PromiseStore *store){
         printf("can't deserialize data\n");
         return NULL;
     }
-    if (data->key)
-        printf("data key=> %s\n", data->key);
+    if (data->key){}
+        // printf("data key=> %s\n", data->key);
     else{
         FreeDataPoint(data);
         free(buffer);
         return NULL;
     }
-    printDataPoint(data, "\n");
+    //printDataPoint(data, "\n");
     free(buffer);
     return data;
 }
@@ -203,7 +203,7 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
             printf("can't send pending response to the client\n");
             return (char *)key;
         }
-        printf("sent , PENDING\n");
+        //printf("sent , PENDING\n");
         return (char *)key;
     }
     // else the promise is either , READY or COMPUTING
@@ -213,14 +213,14 @@ char *handle_claiming_work(int client_fd, PromiseStore *store){
             printf("can't send computing response to the client\n");
             return (char *)key;
         }
-        printf("sent , COMPUTING\n");
+        //printf("sent , COMPUTING\n");
     }else if(promise->status == READY){
         status resp = READY;
         if (send_buffer_with_retry(client_fd, &resp, sizeof(status), 10) == -1){
             printf("can't send ready response to the client\n");
             return (char *)key;
         }
-        printf("sent , READY\n");
+        //printf("sent , READY\n");
     }
     return (char *)key;
 }
@@ -309,7 +309,7 @@ int hadle_sending_datatype(int client_fd, PromiseStore *store, complex_structure
         size_t size = 0;
         n = send_buffer_with_retry(client_fd, &size, sizeof(size_t), 10);
         free(key);
-        return -1;
+        return 0;
     }
 
 
@@ -423,19 +423,19 @@ Array *handle_array(int client_fd, PromiseStore *store){
         free(buffer);
         return NULL;
     }else{
-        printf("magic :)\n");
+        //printf("magic :)\n");
     }
 
     size_t offset = sizeof(uint32_t);
     Array *array = deserialize_array_data(buffer, &offset);
-    if (array->key)
-        printf("array key=> %s\n", array->key);
+    if (array->key){}
+        // printf("array key=> %s\n", array->key);
     else{
         free_array(array);
         free(buffer);
         return NULL;
     }
-    printArray(array);
+    //printArray(array);
     free(buffer);
     return array;
 }
@@ -459,10 +459,10 @@ bool do_keep_alive(int client_fd){
         perror("read failed keep alive\n");
         return false;
     }
-    if (state == true)
-        printf("keep alive [true]\n");
-    else
-        printf("keep alive [false]\n");
+    // if (state == true)
+    //     printf("keep alive [true]\n");
+    // else
+    //     printf("keep alive [false]\n");
     return state;
 }
 
@@ -502,11 +502,14 @@ void* handle_client_thread(void* arg){
                 Data *dt = handle_data(client_fd, store);
                 if (dt){
                     // cache the data
-                    printf("adding data into cache\n");
+                    //printf("adding data into cache\n");
                     Promise *promise = get_create_promise(store, dt->key);
-                    publishData(promise, dt);
-                    done_with_promise_data(promise);
-                    printf("[v] data piblished\n");
+                    if (promise){
+                        publishData(promise, dt);
+                        //done_with_promise_data(promise);
+                    }
+
+                    //printf("[v] data piblished\n");
                 }
                 // handle if this fails  (can't get Data)
                 //printf("[SERVER] can't get expected data\n");
@@ -519,8 +522,9 @@ void* handle_client_thread(void* arg){
                     // cache the array
                    // printf("adding array into cache\n");
                     Promise *promise = get_create_promise(store, arr->key);
-                    if (promise->status == PENDING){
+                    if (promise){
                         publishArray(promise, arr);
+                        //done_with_promise_data(promise);
                     }
                     //printf("[v] array is published\n");
                 }
@@ -554,7 +558,7 @@ void* handle_client_thread(void* arg){
     }
     // close conn
     close(client_fd);
-    printf("\nthread done !\n");
+    //printf("\nthread done !\n");
 
     //free(arg);
     return NULL;

@@ -229,7 +229,7 @@ bool claim_work(Promise *promise){
         if (promise->status == PENDING){
             promise->status = COMPUTING;
             // point out that a thread is working with this data
-            promise->working_threads++;
+            //promise->working_threads++;
             pthread_mutex_unlock(&promise->lock);
             //printf("claimed work for key %s\n", promise->key);
             // we got the work
@@ -363,7 +363,7 @@ void done_with_promise_data(Promise *promise){
 double update_store_threshold(PromiseStore *store){
     // calc accupancy 
     double occupancy = ((double)store->count / (double)store->capacity) * 100;
-    printf("\t[x] occupancy = %lf\n", occupancy);
+    //printf("\t[x] occupancy = %lf\n", occupancy);
 
     // update ema
     store->ema_occupancy =store->smoothing * occupancy + (1 - store->smoothing) * store->prev_ema;

@@ -379,7 +379,7 @@ void *get_cache_datatype_protocol(int sock, char *key, complex_structures dataty
             break;
     }
 
-    printf("[DEBUG] Sending message type: %d\n", type);
+    //printf("[DEBUG] Sending message type: %d\n", type);
     ssize_t n = write_all(sock, &type, sizeof(mssg_type));
     if(n != sizeof(mssg_type)){
         printf("[ERROR] Failed to send message type\n");
@@ -415,13 +415,13 @@ void *get_cache_datatype_protocol(int sock, char *key, complex_structures dataty
     }
     
     if (response_size == -1){
-        printf("[x] CACHE MISS DUDE\n");
+        //printf("[x] CACHE MISS DUDE\n");
         return NULL;
     }else if (response_size == -2){
-        printf("[x] CACHE DATA IS NULL\n");
+        //printf("[x] CACHE DATA IS NULL\n");
         return NULL;
     }else if (response_size == 0){
-        printf("[x] CACHE NOT READY\n");
+        //printf("[x] CACHE NOT READY\n");
         return NULL;
     }
     
@@ -444,7 +444,7 @@ void *get_cache_datatype_protocol(int sock, char *key, complex_structures dataty
     
     //printf("[DEBUG] Checking magic number...\n");
     if (check_magic_number(buffer)){
-        printf("[v] good magic number\n");
+        //printf("[v] good magic number\n");
     }else{
         printf("[x] bad magic number\n");
         free(buffer);
@@ -559,95 +559,69 @@ int test_case() {
     Data *data = InitDataPoint(chars0);
     WriteDataFloat(data, 12141.151);
     int stat1 = claim_work_client(sock, chars0, 10);
-    // if (stat1 == -1){
-    //     printf("ERROR ACURED while claiming work quiting\n");
-    //     close(sock);
-    //     free(addr);
-    //     return -1;
-    // }
-    sleep(2);
+
+
+
     send_data_with_retry(sock, data, 10);
-    printf("[V] data was sent\n");
-    sleep(2);
+    //printf("[V] data was sent\n");
+
     Data *data_retrieved = (Data *)get_cache_datatype_protocol(sock, chars0, DATA);
     if (data_retrieved){
-        printf("PRINTING DATA RECIEVED\n");
-        printDataPoint(data_retrieved, "\n");
+        //printf("PRINTING DATA RECIEVED\n");
+        //printDataPoint(data_retrieved, "\n");
+        //printf("data key : %s\n", data_retrieved->key);
+        FreeDataPoint(data_retrieved);
     }else{
-        printf("[XXXXX] READY but nothing is returning(DATA)\n");
+        // cache miss
+        FreeDataPoint(data);
+        free(addr);
+        close(sock);
+        return -3;
+        //printf("[XXXXX] READY but nothing is returning(DATA)\n");
     }
 
 
+    char chars[10];
+    rand_str(chars, 9);
+    Data *data1 = InitDataPoint("data1");
+    WriteDataFloat(data1, 121441.151);
+    Data *data2 = InitDataPoint("data2");
+    WriteDataFloat(data2, 6565.151);
+    Data *data3 = InitDataPoint("data3");
+    WriteDataFloat(data3, 68678.151);
+    Data *data4 = InitDataPoint("data4");
+    WriteDataFloat(data4, 234645.151);
+    Array *arr = InitDataPointArray(chars);
+    append_datapoint(arr, data1);
+    append_datapoint(arr, data2);
+    append_datapoint(arr, data3);
+    append_datapoint(arr, data4);
+    /** WORK FLOW TO CACHE A COMPUTE VALUE */
+    // claim the work so no other process recomputes it
 
-    // char chars[10];
-    // rand_str(chars, 9);
-    // Data *data1 = InitDataPoint("data1");
-    // WriteDataFloat(data1, 121441.151);
-    // Data *data2 = InitDataPoint("data2");
-    // WriteDataFloat(data2, 6565.151);
-    // Data *data3 = InitDataPoint("data3");
-    // WriteDataFloat(data3, 68678.151);
-    // Data *data4 = InitDataPoint("data4");
-    // WriteDataFloat(data4, 234645.151);
-    // Array *arr = InitDataPointArray(chars);
-    // append_datapoint(arr, data1);
-    // append_datapoint(arr, data2);
-    // append_datapoint(arr, data3);
-    // append_datapoint(arr, data4);
-    // /** WORK FLOW TO CACHE A COMPUTE VALUE */
-    // // claim the work so no other process recomputes it
-    // send_keep_alive(sock);
-    // int stat2 = claim_work_client(sock, chars, 10);
-    // if (stat2 == -1){
-    //     printf("ERROR ACURED while claiming work quiting\n");
-    //     close(sock);
-    //     return -1;
-    // }
-    // // if the status is PENDING that means that the promise is created
-    // if (stat2 == PENDING){
-    //     // keep the conn alive for our next request
-    //     sleep(2);
-    //     send_keep_alive(sock);
-    //     // send the array (the same key)
-    //     send_array_with_retry(sock, arr, 10);
-    //     close(sock);
-    //     return -1;
-    // }
-    // // the compute for the key is already done so you can retrieve 
-    // // the value
-    // else if (stat2 == READY){
-    //     // keep the conn alive
-    //     send_keep_alive(sock);
-    //     // get the cached value
-    //     Array *arr2 = (Array *)get_cache_datatype_protocol(sock, chars, ARRAY);
-    //     if (arr2){
-    //         printf("PRINTING ARRAY RECIEVED\n");
-    //         printf("key : %s\n", arr2->key);
-    //         // printArray(arr2);
-    //     }else{
-    //         printf("[XXXXX] READY but nothing is returning(ARRAY)\n");
-    //     }
-    // }else{
-    //     // the promise is still computing , you can do something else
-    //     printf("[LL] promise is not ready to get \n");
-    // }
+    int stat2 = claim_work_client(sock, chars, 10);
 
-    // if (stat1 == READY){
-    //     send_keep_alive(sock);
-    //     Data *data_retrieved = (Data *)get_cache_datatype_protocol(sock, "aminemeftah", DATA);
-    //     if (data_retrieved){
-    //         printf("PRINTING DATA RECIEVED\n");
-    //         printDataPoint(data_retrieved, "\n");
-    //         FreeDataPoint(data_retrieved);
-    //     }else{
-    //         printf("[XXXXX] READY but nothing is returning(DATA)\n");
-    //     }
-    // }else{
-    //     printf("[LL] promise is not ready to get\n");
-    // }
-    // kill the connection
-    send_die(sock);
-    // send side cases
+    // send the array (the same key)
+    send_array_with_retry(sock, arr, 10);
+    
+    // get the cached value
+    Array *arr2 = (Array *)get_cache_datatype_protocol(sock, chars, ARRAY);
+    if (arr2){
+        //printf("PRINTING ARRAY RECIEVED\n");
+        //printf("array key : %s\n", arr2->key);
+        free_array(arr2);
+    }
+    else{
+        // cache miss 
+        free_array(arr);
+        free(addr);
+        close(sock);
+        return -3;
+        //printf("[XXXXX] READY but nothing is returning(ARRAY)\n");
+    }
+    
+    FreeDataPoint(data);
+    free_array(arr);
     free(addr);
     close(sock);
 
@@ -655,8 +629,21 @@ int test_case() {
 }
 
 int sendstuff() {
-    while (true){
-        sleep(1);
-        test_case();
+    unsigned int data_misses = 0;
+    unsigned int counter = 100001;
+    clock_t start = clock();
+    while (counter > 1){
+        if (test_case() == -3){
+            data_misses++;
+        }
+        counter--;
     }
+    clock_t end = clock();
+
+    double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+    
+    printf("[REPPORT]\n");
+    printf("total cache misses = %d\n", data_misses);
+    printf("percent of data misses = %lf%\n", ((double)data_misses/(double)100001) * (double)100);
+    printf("Execution time: %f seconds\n", elapsed);
 }
