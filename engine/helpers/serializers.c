@@ -361,8 +361,8 @@ void TagBuffer(uint8_t *buffer, size_t *offset){
 // int main (){
 //     int number = 12314;
 //     //  SERIALIZE DATA POINTS <INT>
-//     Data *dt1 = InitDataPoint();
-//     WriteData(dt1, INT, &number, DATA_NOT_OWNED);
+//     Data *dt1 = InitDataPoint("somerut");
+//     WriteDataInt(dt1, number);
 
 //     size_t estimated_size = estimate_size_data(dt1);
 //     uint8_t *buffer1 = malloc(estimated_size + sizeof(uint32_t));
@@ -379,8 +379,8 @@ void TagBuffer(uint8_t *buffer, size_t *offset){
 
 //     //  SERIALIZE DATA POINTS <FLAOT>
 //     float number2 = 123.123;
-//     Data *dt2 = InitDataPoint();
-//     WriteData(dt2, FLOAT, &number2, DATA_NOT_OWNED);
+//     Data *dt2 = InitDataPoint("somerut");
+//     WriteDataFloat(dt2, number2);
 
 //     estimated_size = estimate_size_data(dt2);
 //     uint8_t *buffer2 = malloc(estimated_size + sizeof(uint32_t));
@@ -397,8 +397,8 @@ void TagBuffer(uint8_t *buffer, size_t *offset){
 
 //     //  SERIALIZE DATA POINTS <DOUBLE>
 //     double number3 = 123.123123441;
-//     Data *dt3 = InitDataPoint();
-//     WriteData(dt3, DOUBLE, &number3, DATA_NOT_OWNED);
+//     Data *dt3 = InitDataPoint("somerut");
+//     WriteDataDouble(dt3, number3);
 
 //     estimated_size = estimate_size_data(dt3);
 //     uint8_t *buffer3 = malloc(estimated_size + sizeof(uint32_t));
@@ -413,9 +413,8 @@ void TagBuffer(uint8_t *buffer, size_t *offset){
 
 
 //     //  SERIALIZE DATA POINTS <BOOLEN>
-//     bool boolean_val = true;
-//     Data *dt4 = InitDataPoint();
-//     WriteData(dt4, BOOLEAN, &boolean_val, DATA_NOT_OWNED);
+//     Data *dt4 = InitDataPoint("somerut");
+//     WriteDataBool(dt4, true);
 
 //     estimated_size = estimate_size_data(dt4);
 //     uint8_t *buffer4 = malloc(estimated_size + sizeof(uint32_t));
@@ -430,8 +429,8 @@ void TagBuffer(uint8_t *buffer, size_t *offset){
 
 
 //     //  SERIALIZE DATA POINTS <STRING>
-//     Data *dt5 = InitDataPoint();
-//     WriteData(dt5, STRING, "LET THERE BE LIGHT", DATA_NOT_OWNED);
+//     Data *dt5 = InitDataPoint("somerut");
+//     WriteDataString(dt5, "LET THERE BE LIGHT");
 
 //     estimated_size = estimate_size_data(dt5);
 //     uint8_t *buffer5 = malloc(estimated_size + sizeof(uint32_t));
@@ -449,7 +448,7 @@ void TagBuffer(uint8_t *buffer, size_t *offset){
 //     // SERIALIZING ARRAY OF DATAPOINTS 
 //     // we're going to be using the same ones as above
 //     printf("\n\n\nArray:\n");
-//     Array *arr = InitDataPointArray();
+//     Array *arr = InitDataPointArray("somerut");
 //     append_datapoint(arr, dt1);
 //     append_datapoint(arr, dt2);
 //     append_datapoint(arr, dt3);

@@ -48,18 +48,11 @@ typedef struct
 Shared *InitSharedMemory();
 void FreeSharedMemory(Shared *shared);
 int append_to_share(Shared *share, char* key, Data *datapoint);
-void *cleaner_thread(void *arg);
+
 
 int INIT_health_cleaner_threads(
     unsigned int thread_count, 
-    unsigned int shared_memory_size,
-    double threshold,
-    double min_threshold,
-    double max_threshold,
-    PromiseStore *store,
-    void *(health_rootine)(void *args),
-    void *(cleaner_rootine)(void *args)
+    void *(health_rootine)(void *args)
 );
 
-void Init_Server_multithread(PromiseStore *store);
 #endif

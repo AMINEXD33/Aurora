@@ -46,8 +46,6 @@ Node *init_node(Node *parent, XXH64_hash_t key_hash,  complex_structures type, v
         node->value.data = (Data *)value;
     else if(type == ARRAY)
         node->value.array = (Array *)value;
-    else if(type == PROMISE)
-        node->value.promise = (Promise *)value;
     node->left = NULL;
     node->right = NULL;
     node->parent = parent;
@@ -71,20 +69,7 @@ Node *init_node(Node *parent, XXH64_hash_t key_hash,  complex_structures type, v
 Node *init_Data_node(Node *parent, XXH64_hash_t key_hash, Data *value){
     return init_node(parent, key_hash, DATA, value);
 }
-/**
- * Initialize a node that will contain a value of type Promise
- * ### args:
- *  `parent`: the parent of the node
- *  `key_hash`: a 64-bit number that represents a hashed value of the key
- *  `type`: the type of data the node will be holding , look at the complex_structures to see them all
- *  `value`: a pointer to the `Promise`
- * ### return:
- *  `node`: the initialized node
- *  `NULL`: allocation failed 
- */
-Node *init_Promise_node(Node *parent, XXH64_hash_t key_hash, Promise *value){
-    return init_node(parent, key_hash, PROMISE, value);
-}
+
 /**
  * Initialize a node
  * Initialize a node that will contain a value of type Array
@@ -124,9 +109,6 @@ void write_to_node(Node *node, XXH64_hash_t key_hash,
     case ARRAY:
         node->value.array = (Array *)value;
         break;
-    case PROMISE:
-        node->value.promise = (Promise *)value;
-        break;
     default:
         break;
     }
@@ -148,15 +130,6 @@ void free_node_resources(Node *target_node){
     else if (target_node->type == ARRAY && target_node->value.array) {
         free_array(target_node->value.array);
     } 
-    else if (target_node->type == PROMISE && target_node->value.promise) {
-        if (target_node->value.promise->type == ARRAY && target_node->value.promise->datatype.array)
-            free_array(target_node->value.promise->datatype.array);
-        if (target_node->value.promise->type == DATA && target_node->value.promise->datatype.data)
-            FreeDataPoint(target_node->value.promise->datatype.data);
-        pthread_mutex_destroy(&target_node->value.promise->lock);
-        pthread_cond_destroy(&target_node->value.promise->ready); 
-        free(target_node->value.promise);
-    }
     free(target_node);
     return;
 }
@@ -366,8 +339,6 @@ void *get_value_from_tree(char *key, Node *btree, complex_structures type){
                 return curr->value.data;
             else if(type == ARRAY)
                 return curr->value.array;
-            else if(type == PROMISE)
-                return curr->value.promise;
             else if(type == NODE)
                 return curr;
             else
@@ -418,19 +389,6 @@ Array *get_Array_from_tree(char *key, Node *btree){
     return array;
 }
 
-/**
- * get Promise from a node 
- * ### args:
- *  `key`: the key to serch for
- *  `btree`: the root node of the tree
- * ### return:
- *  `NULL`: not found
- *  `Promise *`: pointer to the `Promise` structure
- */
-Promise *get_Promise_from_tree(char *key, Node *btree){
-    Promise *promise = (Promise *)get_value_from_tree(key, btree, PROMISE);
-    return promise;
-}
 
 /**
  * get the node it self 
@@ -603,20 +561,6 @@ int push_Array_to_tree(Array *data, Node *btree){
     return push_value_to_tree(data->key, data, ARRAY, btree);
 }
 
-/**
- * push a `Promise` node to the tree
- * the function already cheks for duplicated keys
- * ### args:
- *  `key`: the key
- *  `data`: pointer to the `Promise`
- *  `btree`: the root node of the tree
- * ### return:
- *  `0`: success
- *  `-1`: some error accured
- */
-int push_Promise_to_tree(Promise *data, Node *btree){
-    return push_value_to_tree(data->key, data, PROMISE, btree);
-}
 
 
 /**
@@ -667,8 +611,6 @@ void free_tree_bfs(Node *root) {
             FreeDataPoint(current->value.data);
         } else if (current->type == ARRAY && current->value.array) {
             free_array(current->value.array);
-        } else if (current->type == PROMISE && current->value.promise) {
-            free_promise(current->value.promise);
         }
         
         //printf("Freed node with key %llu\n", current->hashed_key);

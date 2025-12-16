@@ -7,8 +7,6 @@
 void *health_thread(void *arg){
 
     printf("[+] health thread stuff ...\n");
-
-
     while (true){
         printf("<health check rootine>\n");
         sleep(10);

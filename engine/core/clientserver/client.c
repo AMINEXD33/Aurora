@@ -1,583 +1,38 @@
 #include "./clientserver.h"
 
-unsigned int recheck_times = 0;
+void rand_str(char *dest, size_t length) {
+    char charset[] = "0123456789"
+                     "abcdefghijklmnopqrstuvwxyz"
+                     "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-/**
- * check if connection is still active
- * ### args:
- *  `sock`: the server socket indentifier
- * ### return:
- *  `true`: if conn is still alive
- *  `flase`: if conn is not alive
- */
-bool check_connection_alive(int sock) {
-    struct pollfd pfd;
-    pfd.fd = sock;
-    pfd.events = POLLIN | POLLHUP | POLLERR;
-    
-    int ret = poll(&pfd, 1, 0);  
-    if (ret < 0){
-        printf("[CONN CLOSED] connection closed!\n");
-        return false;
+    while (length-- > 0) {
+        size_t index = (double) rand() / RAND_MAX * (sizeof charset - 1);
+        *dest++ = charset[index];
     }
-    if (pfd.revents & (POLLHUP | POLLERR)) return false; 
-    return true; 
+    *dest = '\0';
 }
-
-/**
- * send a keep alive signal to the server
- * to close conn
- * ### args:
- *  `sock`: the server socket indentifier
- * ### return:
- *  `0`: if signal is sent
- *  `-1`: on error
- */
-int send_keep_alive(int sock){
-    if (!check_connection_alive(sock)){
-        return -1;
-    }
-    bool flag = true;
-    ssize_t n = write_all(sock, &flag, sizeof(bool));
-    if (n != sizeof(bool)){
-        return -1;
-    }
-    return 0;
-}
-
-/**
- * send a kill signal to the server
- * to close conn
-* ### args:
- *  `sock`: the server socket indentifier
- * ### return:
- *  `0`: if signal is sent
- *  `-1`: on error
- */
-int send_die(int sock){
-    if (!check_connection_alive(sock)){
-        return -1;
-    }
-    bool flag = false;
-    ssize_t n = write_all(sock, &flag, sizeof(bool));
-    if (n != sizeof(bool)){
-        return -1;
-    }
-    return 0;
-}
-
-
-/**
- * a protocol so sending Data type to the server
- * the functions sends:
- *         ##### 1: the type of the object (EXPECT_DATA)
- *         ##### 2: the size of the serialized data
- *         ##### 3: serialized data
- * ### args:
- *  `sock`: server identifier
- *  `data`: the Data struct that would be sent
- * ### return:
- *  `0`: if data is sent
- *  `-1`: an error accured
- */ 
-int send_cache_data_protocol(int sock, Data *data){
-    if (!check_connection_alive(sock)){
-        return -1;
-    }
-    // send type of mssg
-    mssg_type type = EXPECT_DATA;
-    ssize_t n = write_all(sock, &type, sizeof(mssg_type));
-    if(n != sizeof(mssg_type)){
-        return -1;
-    }
-    // calc estimated size
-    size_t estimated_size = estimate_size_data(data) + (size_t)sizeof(uint32_t);
-    // allocate buffer
-    uint8_t *buffer = calloc(1, estimated_size);
-    if (!buffer){
-        printf("can't allocate buffer for cache size %ld\n", estimated_size);
-        free(buffer);
-        return -1;
-    }
-    // set offset
-    size_t  offset = 0;
-    // tag with magic number
-    TagBuffer(buffer, &offset);
-    // serialize data
-    serialize_data(data, buffer +  sizeof(uint32_t));
-    // send the size of data 
-    n = write_all(sock, &estimated_size, sizeof(size_t));
-    if(n != sizeof(size_t)){
-        free(buffer);
-        return -1;
-    }
-    // send data
-    n = write_all(sock, buffer, estimated_size);
-    if(n != estimated_size){
-        free(buffer);
-        return -1;
-    }
-    free(buffer);
-    return 0;
-}
-
-/**
- * send the key to the server
- * ### args
- *  `sock`: server identifier
- *  `key`: the cache key
- * ### return: 
- *  `0`: if successfull
- *  `-1`: on error
- */
-int send_cache_key_claim_work(int sock, char *key){
-    if (!check_connection_alive(sock)){
-        return -1;
-    }
-    // send type of mssg
-    mssg_type type = EXPECT_CLAIM_WORK;
-    ssize_t n = write_all(sock, &type, sizeof(mssg_type));
-    if(n != sizeof(mssg_type)){
-        return -1;
-    }
-    // calc estimated size
-    size_t estimated_size = strlen(key) + (size_t)sizeof(size_t);
-    // allocate buffer
-    uint8_t *buffer = calloc(1, estimated_size);
-    if (!buffer){
-        printf("can't allocate buffer for cache size %ld\n", estimated_size);
-        free(buffer);
-        return -1;
-    }
-    // set offset
-    size_t  offset = 0;
-    // tag with magic number
-    TagBuffer(buffer, &offset);
-    // send the size of data 
-    n = write_all(sock, &estimated_size, sizeof(size_t));
-    if(n != sizeof(size_t)){
-        free(buffer);
-        return -1;
-    }
-    // cpy the buffer
-    memcpy(buffer, key, estimated_size);
-    n = write_all(sock, buffer, estimated_size);
-    if(n != estimated_size){
-        free(buffer);
-        return -1;
-    }
-    free(buffer);
-    return 0;
-}
-
-
-/**
- * a protocol so sending Array type to the server
- * the functions sends:
- *         ##### 1: the type of the object (EXPECT_ARRAY)
- *         ##### 2: the size of the serialized array
- *         ##### 3: serialized array
- * ### return:
- *  `sock`: the server indentifier
- *  `arr`: the Array struct that would be sent
- * ### return:
- *  `0`: if data is sent
- *  `-1`: an error accured
- */ 
-int send_cache_array_data_protocol(int sock, Array *arr){
-    if (!check_connection_alive(sock)){
-        return -1;
-    }
-    // send type of mssg
-    mssg_type type = EXPECT_ARRAY;
-    ssize_t n = write_all(sock, &type, sizeof(mssg_type));
-    if(n != sizeof(mssg_type)){
-        return -1;
-    }
-    // calc estimated size
-    size_t estimated_size = estimate_size_array_data(arr) + sizeof(uint32_t);
-    // allocate buffer
-    uint8_t *buffer = calloc(1, estimated_size);
-    if (!buffer){
-        printf("can't allocate buffer for cache size %ld\n", estimated_size);
-        free(buffer);
-        return -1;
-    }
-    // set offset
-    size_t  offset = 0;
-    // tag with magic number
-    TagBuffer(buffer, &offset);
-    // serialize data
-    serialize_array_of_data(arr, buffer +  sizeof(uint32_t));
-    // send the size of data 
-    n = write_all(sock, &estimated_size, sizeof(size_t));
-    if(n != sizeof(size_t)){
-        free(buffer);
-        return -1;
-    }
-    // send data
-    n = write_all(sock, buffer, estimated_size);
-    if(n != estimated_size){
-        free(buffer);
-        return -1;
-    }
-    free(buffer);
-    return 0;
-}
-
-
-/**
- * send key but retry if an error accured
- * ### args:
- *  `sock`: the server identifier
- *  `key`: the promise key 
- *  `max_retries`: the max retries before returning an error
- * ### return:
- *  `0`: data sent
- *  `-1`: data couldn't be sent
- */
-int send_key_with_retry(int sock, char *key, int max_retries) {
-    if (!check_connection_alive(sock)){
-        return -1;
-    }
-    for (int i = 0; i < max_retries; i++) {
-        if (send_cache_key_claim_work(sock, key) == 0) {
-            return 0;  
-        }
-        fprintf(stderr, "Retry %d/%d\n", i + 1, max_retries);
-        usleep(1000 * (1 << i)); 
-    }
-    return -1;  
-}
-
-/**
- * send data but retry if an error accured
- * ### args:
- *  `sock`: the server identifier
- *  `data`: the Data struct 
- *  `max_retries`: the max retries before returning an error
- * ### return:
- *  `0`: data sent
- *  `-1`: data couldn't be sent
- */
-int send_data_with_retry(int sock, Data *data, int max_retries) {
-    if (!check_connection_alive(sock)){
-        return -1;
-    }
-    for (int i = 0; i < max_retries; i++) {
-        if (send_cache_data_protocol(sock, data) == 0) {
-            return 0;  
-        }
-        fprintf(stderr, "Retry %d/%d\n", i + 1, max_retries);
-        usleep(1000 * (1 << i)); 
-    }
-    return -1;  
-}
-
-/**
- * send array but retry if an error accured
-* ### args:
- *  `sock`: the server identifier
- *  `arr`: the arr key 
- *  `max_retries`: the max retries before returning an error
- * ### return:
- *  `0`: data sent
- *  `-1`: data couldn't be sent
- */
-int send_array_with_retry(int sock, Array *arr, int max_retries) {
-    if (!check_connection_alive(sock)){
-        return -1;
-    }
-    for (int i = 0; i < max_retries; i++) {
-        if (send_cache_array_data_protocol(sock, arr) == 0) {
-            return 0;  
-        }
-        fprintf(stderr, "Retry %d/%d\n", i + 1, max_retries);
-        usleep(1000 * (1 << i)); 
-    }
-    return -1;
-}
-
-
-
-/**
- * wrapper function to send the key and try to claim the work
-   ### args:
- *  `sock`: the server identifier
- *  `key`: the promise key 
- *  `max_retries`: the max retries before returning an error
- * ### return:
- *  `COMPUTING`: if the work is still computing
- *  `PENDING`: the key is still pending(no work is being done)
- *  `READY`: the work is ready
- *  `-1`: on error
- */
-int claim_work_client(int sock, char *key, int max_retries){
-    if (!check_connection_alive(sock)){
-        printf("[x] connection is down\n");
-        return -1;
-    }
-    if (send_key_with_retry(sock, key, max_retries) == -1){
-        printf("[x] can't send keys\n");
-        return -1;
-    }
-    status answer;
-    //printf("== reading the servers answer\n");
-    ssize_t n = read_all(sock, &answer, sizeof(status));
-    if (n != sizeof(status)){
-        printf("[x] can't rescieve all size\n");
-        return -1;
-    }
-    //printf("SERVER ANSWER = %d\n", answer);
-    switch (answer)
-    {
-        // an other thread is still computing this value
-        case COMPUTING:
-            //printf("[O] other thread is computing, ill wait\n");
-
-            return COMPUTING;
-        // this thread claimed the work
-        case PENDING:
-            //printf("[O] got the work\n");
-            return PENDING;
-        // the key is already computed
-        case READY:
-            //printf("[O] the work is already computed\n");
-            return READY;
-    }
-    printf("[x] the answer is f something unexpected\n");
-    return -1;
-}
-
-/**
- * get a cached array
- *  ### args:
- *  `sock`: the server identifier
- *  `key`: the promise key 
- *  `datatype`: a defined datatype 
- * ### return:
- *  `Array *`: if successfull
- *  `NULL`: on error
- */
-void *get_cache_datatype_protocol(int sock, char *key, complex_structures datatype){
-    if (!check_connection_alive(sock)){
-        return NULL;
-    }
-    // send type of mssg
-    mssg_type type;
-    switch (datatype)
-    {
-        case DATA:
-            type = GET_DATA;
-            break;
-        case ARRAY:
-            type = GET_ARRAY;
-            break;
-        default:
-            printf("[ERROR] can't retrived an undefined datatype\n");
-            return NULL;
-            break;
-    }
-
-    //printf("[DEBUG] Sending message type: %d\n", type);
-    ssize_t n = write_all(sock, &type, sizeof(mssg_type));
-    if(n != sizeof(mssg_type)){
-        printf("[ERROR] Failed to send message type\n");
-        return NULL;
-    }
-    
-    // calc estimated size
-    size_t estimated_size = strlen(key);
-    //printf("[DEBUG] Key size: %zu, Key: %s\n", estimated_size, key);
-    
-    // send the size of key
-    n = write_all(sock, &estimated_size, sizeof(size_t));
-    if (n != sizeof(size_t)){
-        printf("[ERROR] Failed to send key size\n");
-        return NULL;
-    }
-    
-    // send key
-    n = write_all(sock, key, estimated_size);
-    if (n != estimated_size){
-        printf("[ERROR] Failed to send key, sent %zd, expected %zu\n", n, estimated_size);
-        return NULL;
-    }
-    
-    //printf("[DEBUG] Waiting for response size...\n");
-    size_t response_size = 0;
-    n = read_all(sock, &response_size, sizeof(size_t));
-    //printf("[DEBUG] Read result: %zd, response_size: %zu\n", n, response_size);
-
-    if (n != sizeof(size_t)){
-        printf("[ERROR] Failed to read response size, got %zd bytes\n", n);
-        return NULL;
-    }
-    
-    if (response_size == -1){
-        //printf("[x] CACHE MISS DUDE\n");
-        return NULL;
-    }else if (response_size == -2){
-        //printf("[x] CACHE DATA IS NULL\n");
-        return NULL;
-    }else if (response_size == 0){
-        //printf("[x] CACHE NOT READY\n");
-        return NULL;
-    }
-    
-    //printf("[DEBUG] Allocating buffer of size: %zu\n", response_size);
-    uint8_t *buffer = calloc(1, response_size);
-    if (!buffer){
-        printf("[ERROR] Failed to allocate buffer\n");
-        return NULL;
-    }
-    
-    //printf("[DEBUG] Reading buffer...\n");
-    n = read_all(sock, buffer, response_size);
-    //printf("[DEBUG] Read %zd bytes, expected %zu\n", n, response_size);
-    
-    if (n != response_size){
-        printf("[x] mismatch in size: read %zd, expected %zu\n", n, response_size);
-        free(buffer);
-        return NULL;
-    }
-    
-    //printf("[DEBUG] Checking magic number...\n");
-    if (check_magic_number(buffer)){
-        //printf("[v] good magic number\n");
-    }else{
-        printf("[x] bad magic number\n");
-        free(buffer);
-        return NULL;
-    }
-    
-    size_t offset = sizeof(uint32_t);
-    //printf("[DEBUG] Deserializing array...\n");
-    switch (datatype)
-    {
-        case DATA:
-            Data *data = deserialize_data(buffer, &offset);
-            free(buffer);
-            return data;
-            break;
-        case ARRAY:
-            Array *array = deserialize_array_data(buffer, &offset);
-            free(buffer);
-            return array;
-            break;
-        default:
-            printf("[ERROR] NO DESERIALIZATION FUNCTION FOR DATATYPE %d\n", datatype);
-            free(buffer);
-            return NULL;
-            break;
-    }
-    return NULL;
-}
-
-/**
- * set socket timeout 
- * ### args:
- *  `sock`: the socket indentifier
- *  `seconds`: the timeout in seconds
- * ### return:
- *  `0`: timeoute is set
- *  `-1`: timeout is not set
- */
-int set_socket_timeout(int sock, int seconds) {
-    struct timeval timeout;
-    timeout.tv_sec = seconds;
-    timeout.tv_usec = 0;
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
-        return -1;
-    }
-    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
-        return -1;
-    }
-    return 0;
-}
-
-/**
- * create a socket and connect to the server 
- */
-int start_connection(struct sockaddr_un *addr){
-    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sock < 0) { 
-        perror("socket creation error");
-        close(sock);
-        return -1;
-    }
-    if (connect(sock, (struct sockaddr *)addr, sizeof(*addr)) < 0) {
-        perror("can't connect to the server");
-        close(sock);
-        return -1;
-    }
-    return sock;
-}
-
-/**
- * get the addresse of the server(localhost)
- */
-struct sockaddr_un * get_addr(){
-    struct sockaddr_un *addr = calloc(1, sizeof(struct sockaddr_un));
-    if (!addr){
-        printf("can't allocate mem for addresse\n");
-        return NULL;
-    }
-    addr->sun_family = AF_UNIX;
-    strcpy(addr->sun_path, SOCKET_PATH);
-    return addr;
-}
-
-
 
 /**
  * just a test and show of concept function of how a work flow example
  */
-int test_case() {
-    struct sockaddr_un *addr = get_addr();
-    if (!addr){
-        return -1;
-    }
-    int max_conn_retries = 0;
-    int sock = start_connection(addr);
-    if (sock < 0){
-        printf("can't create sock\n");
-        free(addr);
-        return -1;
-    }
-
-    if (set_socket_timeout(sock, 10) == -1){
-        printf("can't set timeout\n");
-        free(addr);
-        close(sock);
-        return -1;
-    }
-
+int test_case(redisContext *c) {
     // claim work
     char chars0[3];
     rand_str(chars0, 2);
     Data *data = InitDataPoint(chars0);
     WriteDataFloat(data, 12141.151);
-    int stat1 = claim_work_client(sock, chars0, 10);
-
-
-
-    send_data_with_retry(sock, data, 10);
+    int found = 0;
+    Data *data_retrieved = get_Data_from_cache(c, chars0);
     //printf("[V] data was sent\n");
-
-    Data *data_retrieved = (Data *)get_cache_datatype_protocol(sock, chars0, DATA);
     if (data_retrieved){
         //printf("PRINTING DATA RECIEVED\n");
         //printDataPoint(data_retrieved, "\n");
         //printf("data key : %s\n", data_retrieved->key);
         FreeDataPoint(data_retrieved);
+        found++;
     }else{
         // cache miss
-        FreeDataPoint(data);
-        free(addr);
-        close(sock);
-        return -3;
-        //printf("[XXXXX] READY but nothing is returning(DATA)\n");
+        cache_Data(c, data, chars0);
     }
 
 
@@ -599,51 +54,46 @@ int test_case() {
     /** WORK FLOW TO CACHE A COMPUTE VALUE */
     // claim the work so no other process recomputes it
 
-    int stat2 = claim_work_client(sock, chars, 10);
 
-    // send the array (the same key)
-    send_array_with_retry(sock, arr, 10);
-    
     // get the cached value
-    Array *arr2 = (Array *)get_cache_datatype_protocol(sock, chars, ARRAY);
+    Array *arr2 =  get_Array_from_cache(c, chars);
     if (arr2){
         //printf("PRINTING ARRAY RECIEVED\n");
-        //printf("array key : %s\n", arr2->key);
+        //printArray(arr2);
         free_array(arr2);
+        found++;
     }
     else{
         // cache miss 
-        free_array(arr);
-        free(addr);
-        close(sock);
-        return -3;
+        cache_Array(c, arr, chars);
         //printf("[XXXXX] READY but nothing is returning(ARRAY)\n");
     }
     
     FreeDataPoint(data);
     free_array(arr);
-    free(addr);
-    close(sock);
-
-    return 0;
+    return found;
 }
 
 int sendstuff() {
     unsigned int data_misses = 0;
-    unsigned int counter = 100001;
+    unsigned int test_size = 12;
+    unsigned int counter = test_size;
+    redisContext *c = create_redis_conn();
+    if (!c){
+        printf("can't connect to server\n");
+        return -1;
+    }
     clock_t start = clock();
     while (counter > 1){
-        if (test_case() == -3){
-            data_misses++;
-        }
+        data_misses +=  abs(test_case(c) - 2);
         counter--;
     }
     clock_t end = clock();
 
     double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-    
+    redisFree(c);
     printf("[REPPORT]\n");
     printf("total cache misses = %d\n", data_misses);
-    printf("percent of data misses = %lf%\n", ((double)data_misses/(double)100001) * (double)100);
+    printf("percent of data misses = %lf%\n", (((double)data_misses/2) /((double)test_size-1)) * (double)100);
     printf("Execution time: %f seconds\n", elapsed);
 }

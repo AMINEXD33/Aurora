@@ -15,11 +15,11 @@
 #include <math.h>
 #include <stdint.h>
 #include "xxhash.h"
- 
+#include <hiredis/hiredis.h>
 
 #define DATA_OWNED true 
 #define DATA_NOT_OWNED false 
-
+#define MAGIC_NUMBER 431;
 typedef enum {
     STRING = 11, 
     BOOLEAN = 12, 
@@ -66,23 +66,6 @@ typedef struct {
 
 typedef enum {READY, COMPUTING, PENDING} status;
 
-/*promis structure*/
-typedef struct{
-    char *key;
-    status status;
-    complex_structures type; 
-    union{
-        Data *data;
-        Array *array;
-    }datatype;
-    pthread_mutex_t lock;
-    pthread_cond_t ready;
-    unsigned int waiting_threads;
-    unsigned int working_threads;
-    unsigned int access_count;
-    bool marked_for_deletion;
-}Promise;
-
 
 /** Binary tree node */
 typedef struct Node{
@@ -92,7 +75,6 @@ typedef struct Node{
     {
         Array *array;
         Data *data;
-        Promise *promise;
     }value;
     struct Node *left;
     struct Node *right;
@@ -195,19 +177,7 @@ PromiseStore *InitPromiseStore(
     double max_threshold
 );
 
-/** Promise API */
-Promise *InitPromise(char *key);
-void free_promise_store(PromiseStore *store);
-Promise *get_create_promise(PromiseStore *store, char *key);
-bool claim_work(Promise *promise);
-void publishData(Promise *promise, Data *result);
-void publishArray(Promise *promise, Array *result);
-Promise *get_promise(PromiseStore *store, char *key);
-Data *wait_for_result_data(Promise *promise);
-Array *wait_for_result_array(Promise *promise);
-void done_with_promise_data(Promise *promise);
-double update_store_threshold(PromiseStore *store);
-void free_promise(Promise *promise);
+
 
 /** Serialization API */
 size_t estimate_size_array_data(Array *arr);
@@ -224,13 +194,11 @@ size_t serialize_data(Data *d, uint8_t *buffer);
 Node *InitBtree();
 void free_tree_bfs(Node *root);
 Node *init_Array_node(Node *parent, XXH64_hash_t key_hash, Array *value);
-Node *init_Promise_node(Node *parent, XXH64_hash_t key_hash, Promise *value);
 Node *init_Data_node(Node *parent, XXH64_hash_t key_hash, Data *value);
-int push_Promise_to_tree(Promise *data, Node *btree);
 int push_Array_to_tree(Array *data, Node *btree);
 int push_Data_to_tree(Data *data, Node *btree);
 Node *get_Node_from_tree(char *key, Node *btree);
-Promise *get_Promise_from_tree(char *key, Node *btree);
+
 Array *get_Array_from_tree(char *key, Node *btree);
 Data *get_Data_from_tree(char *key, Node *btree);
 Node *free_node(Node*root,  Node *target_node);
@@ -248,11 +216,17 @@ Node *hash_search(Hashmap *hashmap, char* key);
 void free_hashmap_and_data(Hashmap *hashmap);
 int hash_push_Data(Hashmap *hashmap, Data *value);
 int hash_push_Array(Hashmap *hashmap, Array *value);
-int hash_push_Promise(Hashmap *hashmap, Promise *value);
 Hashmap *resize_hashmap(Hashmap *old_hashmap);
 void rand_str(char *dest, size_t length);
 
-Promise *deep_copy_Promise( Promise *promise);
+
+/** redis API */
+Array * get_Array_from_cache(redisContext *c, char *key);
+Data * get_Data_from_cache(redisContext *c, char *key);
+int cache_Data(redisContext *c, Data *data, char *key);
+int cache_Array(redisContext *c, Array *data,char *key);
+redisContext *create_redis_conn();
+
 Array *deep_copy_Array(Array *array);
 Data *deep_copy_Data(Data *data);
 #endif
