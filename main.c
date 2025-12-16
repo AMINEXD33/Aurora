@@ -105,15 +105,61 @@ void worker(int id){
             const u_char *pkt = shared_batch->packets[i];
             size_t len = shared_batch->lengths[i];
             
-            // parse eth
+            // point to start of eth
             struct ether_header *eth = (struct ether_header *)pkt;
-            
-            if (ntohs(eth->ether_type) == ETHERTYPE_IP) {
-                struct ip *iph = (struct ip *)(pkt + 14);
-                // ip dest and source
-                protocol_mapper(iph);
-                fflush(stdout);
+            struct ip *iph = NULL;
+            switch (ntohs(eth->ether_type))
+            {
+                case ETHERTYPE_IP:
+                    iph = (struct ip *)(pkt + ETH_HEADER_SIZE_PLAIN);
+                    // ip dest and source
+                    protocol_mapper(iph);
+                    fflush(stdout);
+                    break;
+                case ETHERTYPE_VLAN:
+                    // advance pointer to point at type
+                    pkt += sizeof(struct ether_header);
+                    uint16_t next_header = ntohs(eth->ether_type);
+                    
+                    while(next_header == ETHERTYPE_VLAN){
+                        // get the tci , the struct is is just simplifying things
+                        vlan_tci *vlantci = (vlan_tci *) pkt;
+                        // get tci
+                        uint16_t tci = ntohs(vlantci->tci);
+                        // get vid
+                        uint16_t vid = tci & 0X0FFF; 
+                        
+                        printf("vlan[%u] ", vid);
+                        
+                        // skip 2bytes of tci
+                        pkt += sizeof(uint16_t);
+                        // get the next header 2bytes
+                        next_header = ntohs(*(uint16_t*)pkt);
+                        // now point at the next 2 headers 
+                        // it's either the next tci ot the start of 
+                        // the payload if next header is not a vlan
+                        pkt += sizeof(uint16_t);
+                    }
+                    // get ip packet
+                    iph = (struct ip *)(pkt);
+                    // pass it to the mapper
+                    protocol_mapper(iph);
+                    // flush
+                    fflush(stdout);
+                    break;
+
+                case ETHERTYPE_LOOPBACK:
+                    break;
+                    
+                default:
+                    break;
             }
+            // check if this is an ipv4 eth packer
+            if (ntohs(eth->ether_type) == ETHERTYPE_IP) {
+
+            }
+            // check if this is an ipv6 tagged packet
+            // well not now 
         }
 
         // signal done
