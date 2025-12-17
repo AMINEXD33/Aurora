@@ -1,2 +1,3 @@
 # Aurora
-A modular IDS (experimental)
+A modular IDS
+
